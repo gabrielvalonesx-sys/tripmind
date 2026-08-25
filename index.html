@@ -1,0 +1,4016 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0E0D0B">
+<title>TripMind · Planejador de Viagens</title>
+<!-- v3.1 -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ── TOKENS ── */
+:root {
+  --ink:     #0E0D0B;
+  --ink2:    #3D3A34;
+  --muted:   #7A756C;
+  --line:    #E4E0D8;
+  --bg:      #F7F5F1;
+  --white:   #FFFFFF;
+  --accent:  #1C4ED8;
+  --accent2: #0F2D7A;
+  --green:   #166534;
+  --green-bg:#DCFCE7;
+  --amber:   #92400E;
+  --amber-bg:#FEF3C7;
+  --red:     #991B1B;
+  --red-bg:  #FEE2E2;
+  --shadow:  0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,.12);
+  --r:       14px;
+  --r-sm:    8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+.app-header {
+  background: var(--ink);
+  padding: 1.1rem 2rem;
+  display: flex; align-items: center; gap: 14px;
+  position: sticky; top: 0; z-index: 100;
+  border-bottom: 1px solid #222;
+}
+.logo {
+  font-family: 'DM Serif Display', Georgia, serif;
+  font-size: 1.3rem; color: #fff; letter-spacing: -0.01em;
+}
+.logo em { color: #60A5FA; font-style: italic; }
+.header-sub { font-size: 12px; color: #888; letter-spacing: 0.06em; text-transform: uppercase; }
+.header-spacer { flex: 1; }
+.header-badge {
+  background: #1a1a1a; border: 1px solid #333;
+  color: #888; font-size: 11px; padding: 4px 10px; border-radius: 99px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── MAIN LAYOUT ── */
+.app-body { display: grid; grid-template-columns: 420px 1fr; min-height: calc(100vh - 57px); }
+
+/* ── LEFT PANEL (FORM) ── */
+.panel-form {
+  background: var(--white);
+  border-right: 1px solid var(--line);
+  padding: 2rem 1.75rem;
+  overflow-y: auto;
+  height: calc(100vh - 57px);
+  position: sticky; top: 57px;
+  -webkit-overflow-scrolling: touch;
+}
+.panel-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.6rem; line-height: 1.2;
+  margin-bottom: 0.25rem; color: var(--ink);
+}
+.panel-sub { font-size: 13px; color: var(--muted); margin-bottom: 2rem; }
+
+/* Form sections */
+.form-section { margin-bottom: 1.75rem; }
+.form-section-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 0.6rem; display: flex; align-items: center; gap: 6px;
+}
+.form-section-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--line);
+}
+
+label { display: block; font-size: 13px; font-weight: 500; color: var(--ink2); margin-bottom: 5px; }
+
+input[type=text], input[type=number], input[type=date], select, textarea {
+  width: 100%; padding: 10px 13px;
+  border: 1.5px solid var(--line); border-radius: var(--r-sm);
+  font-family: inherit; font-size: 14px; color: var(--ink);
+  background: var(--bg); transition: border-color .15s, box-shadow .15s;
+  outline: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(28,78,216,.1);
+  background: var(--white);
+}
+textarea { resize: vertical; min-height: 70px; }
+
+.input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.input-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+/* Traveler selector */
+.traveler-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.traveler-card {
+  border: 1.5px solid var(--line); border-radius: var(--r-sm);
+  padding: 10px 6px; text-align: center; cursor: pointer;
+  transition: all .15s; user-select: none;
+}
+.traveler-card:hover { border-color: var(--accent); }
+.traveler-card.active { border-color: var(--accent); background: #EFF6FF; }
+.traveler-card .tc-icon { font-size: 1.5rem; display: block; margin-bottom: 4px; }
+.traveler-card .tc-label { font-size: 11px; font-weight: 500; color: var(--ink2); display: block; }
+
+/* Children ages */
+.children-ages { margin-top: 12px; display: none; }
+.children-ages.show { display: block; }
+.age-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.age-tag {
+  display: flex; align-items: center; gap: 5px;
+  background: #EFF6FF; border: 1px solid #BFDBFE;
+  border-radius: 99px; padding: 4px 10px; font-size: 12px; font-weight: 500; color: var(--accent2);
+}
+.age-tag button {
+  background: none; border: none; cursor: pointer; color: #93C5FD;
+  font-size: 14px; line-height: 1; padding: 0; display: flex; align-items: center;
+}
+.age-tag button:hover { color: var(--red); }
+.age-input-row { display: flex; gap: 8px; margin-top: 8px; }
+.age-input-row input { flex: 1; }
+.age-input-row button {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: var(--r-sm); padding: 0 14px; font-size: 13px;
+  cursor: pointer; font-family: inherit; font-weight: 500; white-space: nowrap;
+}
+.age-input-row button:hover { background: var(--accent2); }
+
+/* Destinations tags */
+.dest-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.dest-tag {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--ink); color: #fff;
+  border-radius: 99px; padding: 5px 12px; font-size: 12px; font-weight: 500;
+}
+.dest-tag button {
+  background: none; border: none; cursor: pointer; color: #aaa;
+  font-size: 14px; line-height: 1; padding: 0;
+}
+.dest-tag button:hover { color: #ff8080; }
+.dest-input-row { display: flex; gap: 8px; }
+.dest-input-row input { flex: 1; }
+.dest-input-row button {
+  background: var(--ink); color: #fff; border: none;
+  border-radius: var(--r-sm); padding: 0 14px; font-size: 13px;
+  cursor: pointer; font-family: inherit; font-weight: 600; white-space: nowrap;
+}
+.dest-input-row button:hover { background: var(--accent); }
+
+/* Quick suggestions */
+.quick-dest { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.quick-btn {
+  font-size: 11px; padding: 3px 9px; border-radius: 99px;
+  border: 1px solid var(--line); background: var(--white);
+  cursor: pointer; color: var(--ink2); font-family: inherit;
+  transition: all .12s;
+}
+.quick-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Hotel style */
+.hotel-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hotel-opt {
+  border: 1.5px solid var(--line); border-radius: var(--r-sm);
+  padding: 10px 12px; cursor: pointer; transition: all .15s;
+}
+.hotel-opt:hover { border-color: var(--accent); }
+.hotel-opt.active { border-color: var(--accent); background: #EFF6FF; }
+.hotel-opt-title { font-size: 13px; font-weight: 600; }
+.hotel-opt-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* Submit */
+.btn-search {
+  width: 100%; padding: 14px;
+  background: var(--accent); color: #fff;
+  border: none; border-radius: var(--r-sm);
+  font-family: inherit; font-size: 15px; font-weight: 600;
+  cursor: pointer; letter-spacing: 0.01em;
+  transition: background .15s, transform .1s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 1.5rem;
+}
+.btn-search:hover { background: var(--accent2); }
+.btn-search:active { transform: scale(0.99); }
+.btn-search:disabled { background: #94A3B8; cursor: not-allowed; }
+
+/* ── RIGHT PANEL (RESULTS) ── */
+.panel-results {
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+/* Empty state */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 60vh; text-align: center; gap: 16px;
+}
+.empty-icon { font-size: 4rem; opacity: 0.4; }
+.empty-title { font-family: 'DM Serif Display', serif; font-size: 1.8rem; color: var(--ink2); }
+.empty-sub { font-size: 14px; color: var(--muted); max-width: 380px; }
+
+/* Loading */
+.loading-state {
+  display: none; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 60vh; gap: 20px; text-align: center;
+}
+.loading-state.show { display: flex; }
+.loader {
+  width: 48px; height: 48px; border: 3px solid var(--line);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-steps { display: flex; flex-direction: column; gap: 8px; }
+.loading-step {
+  font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px;
+  transition: color .3s;
+}
+.loading-step.active { color: var(--accent); font-weight: 500; }
+.loading-step.done { color: var(--green); }
+.loading-step::before { content: '○'; font-size: 12px; flex-shrink: 0; }
+.loading-step.active::before { content: '●'; }
+.loading-step.done::before { content: '✓'; }
+
+/* Results */
+.results-area { display: none; }
+.results-area.show { display: block; }
+
+/* Result header */
+.result-header {
+  background: var(--ink); color: #fff;
+  border-radius: var(--r); padding: 1.5rem 1.75rem;
+  margin-bottom: 1.5rem; display: flex; align-items: flex-start; gap: 20px;
+}
+.result-header-info { flex: 1; }
+.result-trip-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.5rem; color: #fff; margin-bottom: 4px;
+}
+.result-trip-meta { font-size: 13px; color: #aaa; }
+.result-total-box { text-align: right; flex-shrink: 0; }
+.result-total-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: #888; }
+.result-total-brl { font-family: 'DM Serif Display', serif; font-size: 2rem; color: #60A5FA; line-height: 1.1; }
+.result-total-note { font-size: 11px; color: #666; margin-top: 2px; }
+
+/* Tabs */
+.tabs { display: flex; gap: 4px; margin-bottom: 1.5rem; border-bottom: 1px solid var(--line); }
+.tab-btn {
+  padding: 10px 18px; font-size: 13px; font-weight: 500;
+  border: none; background: none; cursor: pointer; color: var(--muted);
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  font-family: inherit; transition: all .15s; white-space: nowrap;
+}
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* Cards */
+.card {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 1.25rem 1.5rem;
+  margin-bottom: 12px; box-shadow: var(--shadow);
+}
+.card-title {
+  font-weight: 600; font-size: 15px; margin-bottom: 6px;
+  display: flex; align-items: center; gap: 8px;
+}
+.card-sub { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+/* Flight card */
+.flight-card {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 1.25rem 1.5rem;
+  margin-bottom: 10px; box-shadow: var(--shadow);
+}
+.flight-route {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+}
+.flight-airport {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.4rem; font-weight: 500; color: var(--ink);
+}
+.flight-arrow { color: var(--muted); font-size: 1.2rem; flex: 1; text-align: center; }
+.flight-meta { display: flex; gap: 16px; flex-wrap: wrap; }
+.flight-meta-item { font-size: 12px; color: var(--muted); }
+.flight-meta-item strong { color: var(--ink); }
+.flight-price {
+  display: flex; align-items: baseline; gap: 8px; margin-top: 10px;
+}
+.flight-price-brl { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+.flight-price-orig { font-size: 12px; color: var(--muted); }
+.flight-badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+/* Hotel card */
+.hotel-card {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 1.25rem 1.5rem;
+  margin-bottom: 10px; box-shadow: var(--shadow);
+}
+.hotel-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+.hotel-name { font-weight: 600; font-size: 15px; }
+.hotel-stars { color: #F59E0B; font-size: 13px; }
+.hotel-rating { background: var(--accent); color: #fff; border-radius: 6px; padding: 3px 8px; font-size: 13px; font-weight: 700; }
+.hotel-price-row { display: flex; align-items: baseline; gap: 8px; margin-top: 8px; }
+.hotel-price-brl { font-size: 1.2rem; font-weight: 700; color: var(--green); }
+.hotel-price-orig { font-size: 12px; color: var(--muted); }
+.hotel-amenities { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+/* Day card */
+.day-card {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--r); margin-bottom: 10px;
+  box-shadow: var(--shadow); overflow: hidden;
+}
+.day-card-header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 1.5rem; cursor: pointer; user-select: none;
+  border-bottom: 1px solid var(--line); background: #FAFAF8;
+}
+.day-card-header:hover { background: #F5F3EF; }
+.day-num {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #fff;
+  background: var(--accent); flex-shrink: 0;
+}
+.day-title-wrap { flex: 1; }
+.day-title { font-weight: 600; font-size: 14px; }
+.day-date { font-size: 11px; color: var(--muted); }
+.day-cost-badge {
+  display: flex; flex-direction: column; align-items: flex-end;
+}
+.day-cost-brl { font-size: 14px; font-weight: 700; color: var(--accent); }
+.day-cost-orig { font-size: 10px; color: var(--muted); }
+.day-toggle { color: var(--muted); transition: transform .2s; flex-shrink: 0; }
+.day-toggle.open { transform: rotate(180deg); }
+.day-body { display: none; padding: 1rem 1.5rem; }
+.day-body.open { display: block; }
+
+/* Timeline */
+.timeline { display: flex; flex-direction: column; gap: 0; }
+.tl-item { display: grid; grid-template-columns: 60px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.tl-item:last-child { border-bottom: none; }
+.tl-time { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); padding-top: 2px; }
+.tl-content { }
+.tl-cat {
+  display: inline-block; font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 1px 6px; border-radius: 4px; margin-bottom: 3px;
+}
+.cat-flight { background: #DBEAFE; color: #1E40AF; }
+.cat-hotel  { background: #D1FAE5; color: #065F46; }
+.cat-food   { background: #FEF3C7; color: #92400E; }
+.cat-visit  { background: #EDE9FE; color: #5B21B6; }
+.cat-transp { background: #F0FDF4; color: #166534; }
+.cat-misc   { background: #F1F5F9; color: #475569; }
+.tl-name { font-size: 13px; font-weight: 500; }
+.tl-note { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+.tl-price { font-size: 12px; font-weight: 600; color: var(--accent); margin-top: 3px; }
+.tl-price-orig { font-size: 10px; color: var(--muted); }
+
+/* Badge */
+.badge {
+  display: inline-block; font-size: 10px; font-weight: 600;
+  padding: 2px 8px; border-radius: 99px; letter-spacing: 0.02em;
+}
+.badge-best { background: #D1FAE5; color: #065F46; }
+.badge-cheap { background: #FEF3C7; color: #92400E; }
+.badge-direct { background: #DBEAFE; color: #1E40AF; }
+.badge-warn { background: #FEE2E2; color: #991B1B; }
+.badge-family { background: #EDE9FE; color: #5B21B6; }
+
+/* Alt dates */
+.alt-dates { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 1rem; }
+.alt-date-card {
+  background: var(--white); border: 1.5px solid var(--line);
+  border-radius: var(--r-sm); padding: 12px 14px; cursor: pointer;
+  transition: all .15s;
+}
+.alt-date-card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
+.alt-date-best { border-color: var(--green) !important; box-shadow: 0 0 0 3px rgba(22,101,52,.1); }
+.alt-date-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.alt-date-period { font-size: 11px; color: var(--muted); }
+.alt-date-saving { font-size: 12px; color: var(--green); font-weight: 600; margin-top: 5px; }
+
+/* Budget summary */
+.budget-table { width: 100%; border-collapse: collapse; }
+.budget-table tr { border-bottom: 1px solid var(--line); }
+.budget-table tr:last-child { border-bottom: none; }
+.budget-table td { padding: 10px 0; font-size: 13px; }
+.budget-table td:first-child { color: var(--ink2); }
+.budget-table td:last-child { text-align: right; font-weight: 600; }
+.budget-table .budget-orig { font-size: 10px; color: var(--muted); display: block; text-align: right; }
+.budget-total-row td { font-weight: 700; font-size: 16px; padding-top: 14px; border-top: 2px solid var(--ink); }
+.budget-total-row .budget-orig { font-size: 12px; }
+
+/* FX bar */
+.fx-bar {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 10px 14px;
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 1.25rem; font-size: 12px; flex-wrap: wrap;
+}
+.fx-item { display: flex; align-items: center; gap: 5px; color: var(--muted); }
+.fx-rate { font-family: 'JetBrains Mono', monospace; font-weight: 500; color: var(--ink); }
+.fx-update { font-size: 10px; color: var(--muted); }
+.fx-edit-btn {
+  background: none; border: 1px solid var(--line); border-radius: 6px;
+  padding: 3px 8px; font-size: 11px; cursor: pointer; font-family: inherit;
+  color: var(--muted); margin-left: auto;
+}
+.fx-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Error */
+.error-box {
+  background: var(--red-bg); border: 1px solid #FCA5A5;
+  border-radius: var(--r-sm); padding: 14px 16px;
+  color: var(--red); font-size: 13px; margin-bottom: 1rem;
+  display: none;
+}
+.error-box.show { display: block; }
+
+/* Streaming */
+.stream-box {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--r); padding: 1.5rem;
+  font-size: 13px; line-height: 1.8; color: var(--ink2);
+  white-space: pre-wrap; font-family: inherit;
+  min-height: 200px; display: none;
+}
+.stream-box.show { display: block; }
+
+.date-mode-card {
+  border: 1.5px solid var(--line); border-radius: var(--r-sm);
+  padding: 10px 12px; cursor: pointer; transition: all .15s;
+}
+.date-mode-card:hover { border-color: var(--accent); }
+.date-mode-card.active { border-color: var(--accent); background: #EFF6FF; }
+
+/* Season mode cards */
+.season-opt-card {
+  border: 1.5px solid var(--line); border-radius: var(--r-sm);
+  padding: 10px 8px; text-align: center; cursor: pointer;
+  transition: all .15s; user-select: none;
+}
+.season-opt-card:hover { border-color: var(--accent); }
+.season-opt-card.active { border-color: var(--accent); background: #EFF6FF; }
+
+/* Civitatis / GYG / Viator colors */
+.tour-link-civitatis { border-color: #FF6B35 !important; color: #FF6B35 !important; }
+.tour-link-civitatis:hover { background: #FF6B35 !important; color: #fff !important; }
+.tour-link-gyg { border-color: #FF6B00 !important; color: #FF6B00 !important; }
+.tour-link-gyg:hover { background: #FF6B00 !important; color: #fff !important; }
+.tour-link-viator { border-color: #589442 !important; color: #589442 !important; }
+.tour-link-viator:hover { background: #589442 !important; color: #fff !important; }
+
+/* Mobile form smooth scroll */
+.panel-form { -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+
+/* Book links */
+.book-link {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:12px; font-weight:600; padding:6px 13px;
+  border-radius:8px; text-decoration:none;
+  border:1.5px solid var(--accent); color:var(--accent);
+  transition:all .15s; white-space:nowrap;
+}
+.book-link:hover { background:var(--accent); color:#fff; }
+.book-link-primary { background:var(--accent); color:#fff !important; }
+.book-link-primary:hover { background:var(--accent2); border-color:var(--accent2); }
+.book-link-green { border-color:var(--green); color:var(--green) !important; }
+.book-link-green:hover { background:var(--green); color:#fff !important; }
+
+/* Season badge */
+.season-bar { display:flex; gap:4px; margin-top:8px; flex-wrap:wrap; }
+.season-chip {
+  font-size:10px; font-weight:600; padding:2px 8px; border-radius:99px;
+}
+.season-peak { background:#FEE2E2; color:#991B1B; }
+.season-high  { background:#FEF3C7; color:#92400E; }
+.season-low   { background:#D1FAE5; color:#065F46; }
+
+/* Score badge */
+.score-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:11px; font-weight:700; padding:3px 9px; border-radius:99px;
+}
+.score-a { background:#D1FAE5; color:#065F46; }
+.score-b { background:#DBEAFE; color:#1E40AF; }
+.score-c { background:#FEF3C7; color:#92400E; }
+.score-d { background:#FEE2E2; color:#991B1B; }
+
+/* Priority section */
+.priority-section { margin-top:1rem; }
+.priority-item {
+  display:flex; align-items:flex-start; gap:10px;
+  padding:10px 0; border-bottom:1px solid var(--line); font-size:13px;
+}
+.priority-item:last-child { border-bottom:none; }
+.priority-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+.priority-now { background:#EF4444; }
+.priority-soon { background:#F59E0B; }
+.priority-later { background:#10B981; }
+
+/* Export bar */
+.export-bar {
+  display:flex; gap:8px; margin-bottom:1rem; flex-wrap:wrap;
+}
+.export-btn {
+  display:flex; align-items:center; gap:6px;
+  font-size:12px; font-weight:500; padding:7px 13px;
+  border:1px solid var(--line); border-radius:8px;
+  background:var(--white); cursor:pointer; font-family:inherit;
+  color:var(--ink2); transition:all .15s;
+}
+.export-btn:hover { border-color:var(--accent); color:var(--accent); }
+
+/* Best period card */
+.best-period-card {
+  background:var(--white); border:2px solid var(--accent);
+  border-radius:var(--r); padding:1.25rem 1.5rem; margin-bottom:12px;
+  box-shadow:0 0 0 4px rgba(28,78,216,.08);
+}
+.best-period-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px; }
+.best-period-title { font-weight:700; font-size:15px; color:var(--accent); }
+.best-period-saving { font-size:13px; font-weight:700; color:var(--green); }
+
+/* ── HISTORY CARDS ── */
+.history-card {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 12px 14px; margin-bottom: 8px;
+  cursor: pointer; transition: all .15s;
+}
+.history-card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
+.history-card-title { font-size: 13px; font-weight: 600; margin-bottom: 3px; }
+.history-card-meta { font-size: 11px; color: var(--muted); }
+.history-card-total { font-size: 13px; font-weight: 700; color: var(--accent); margin-top: 4px; }
+
+/* ── COMPARATOR ── */
+.compare-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.compare-card {
+  background: var(--white); border: 1.5px solid var(--line);
+  border-radius: var(--r-sm); padding: 14px;
+}
+.compare-card.best { border-color: var(--green); background: #F0FDF4; }
+.compare-title { font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+.compare-row { display: flex; justify-content: space-between; font-size: 11px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.compare-row:last-child { border-bottom: none; }
+.compare-total { font-size: 15px; font-weight: 700; color: var(--accent); margin-top: 8px; }
+
+/* ── CHECKLIST ── */
+.checklist-section { margin-bottom: 1.25rem; }
+.checklist-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.check-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.check-item:last-child { border-bottom: none; }
+.check-item input[type=checkbox] { width: 16px; height: 16px; margin-top: 2px; flex-shrink: 0; cursor: pointer; accent-color: var(--accent); }
+.check-item label { cursor: pointer; flex: 1; line-height: 1.5; }
+.check-item label.done { text-decoration: line-through; color: var(--muted); }
+.check-urgency { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 99px; flex-shrink: 0; }
+.check-now  { background: #FEE2E2; color: #991B1B; }
+.check-soon { background: #FEF3C7; color: #92400E; }
+.check-later{ background: #D1FAE5; color: #065F46; }
+
+/* ── WEATHER ── */
+.weather-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+.weather-day {
+  background: var(--white); border: 1px solid var(--line);
+  border-radius: var(--r-sm); padding: 12px; text-align: center;
+}
+.weather-date { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+.weather-icon { font-size: 1.8rem; margin: 4px 0; }
+.weather-temp { font-size: 15px; font-weight: 700; }
+.weather-desc { font-size: 11px; color: var(--muted); margin-top: 3px; }
+.weather-rain { font-size: 10px; color: #1E40AF; margin-top: 2px; }
+
+/* ── MAP ── */
+#trip-map { border-radius: var(--r); overflow: hidden; }
+.map-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.map-legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted); }
+.map-legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* ── EXPORT BAR ── */
+.export-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; }
+.export-btn { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; padding: 7px 13px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); cursor: pointer; font-family: inherit; color: var(--ink2); transition: all .15s; }
+.export-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── SEGMENT SEARCH STATUS ── */
+.segment-status { display: flex; flex-direction: column; gap: 6px; margin: 1rem 0; }
+.segment-item { display: flex; align-items: center; gap: 10px; font-size: 12px; padding: 8px 12px; background: var(--white); border: 1px solid var(--line); border-radius: 8px; }
+.segment-item.done { border-color: var(--green); background: #F0FDF4; }
+.segment-item.active { border-color: var(--accent); background: #EFF6FF; }
+.segment-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.seg-done   { background: var(--green); }
+.seg-active { background: var(--accent); animation: pulse 1s infinite; }
+.seg-wait   { background: var(--line); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ── RESPONSIVE ── */
+
+/* Tablet */
+@media (max-width: 1100px) {
+  .app-body { grid-template-columns: 360px 1fr; }
+}
+
+/* Tablet portrait + large phone landscape */
+@media (max-width: 900px) {
+  .app-body { grid-template-columns: 1fr; display: flex; flex-direction: column; }
+  .panel-form {
+    height: auto; position: static;
+    border-right: none; border-bottom: 1px solid var(--line);
+    max-height: none; overflow-y: visible;
+  }
+  .panel-results { padding: 1.25rem; }
+  .result-header { gap: 12px; }
+}
+
+/* Phone */
+@media (max-width: 600px) {
+  .app-header { padding: 0.85rem 1rem; }
+  .logo { font-size: 1.1rem; }
+  .header-badge { display: none; }
+  .panel-form { padding: 1.1rem 1rem; }
+  .panel-results { padding: 1rem; }
+  .traveler-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .traveler-card { padding: 8px 4px; }
+  .traveler-card .tc-icon { font-size: 1.25rem; }
+  .traveler-card .tc-label { font-size: 10px; }
+  .hotel-options { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .result-header { flex-direction: column; padding: 1.1rem; }
+  .result-total-box { text-align: left; }
+  .result-total-brl { font-size: 1.6rem; }
+  .tabs { overflow-x: auto; padding-bottom: 2px; gap: 2px; }
+  .tab-btn { padding: 9px 12px; font-size: 12px; flex-shrink: 0; }
+  .day-card-header { padding: 12px 1rem; gap: 8px; }
+  .day-num { width: 28px; height: 28px; font-size: 11px; }
+  .day-cost-brl { font-size: 13px; }
+  .tl-item { grid-template-columns: 48px 1fr; gap: 8px; }
+  .tl-time { font-size: 10px; }
+  .input-row { grid-template-columns: 1fr; }
+  .date-mode-card { padding: 8px 10px; }
+  .alt-dates { grid-template-columns: 1fr; }
+  .flight-meta { gap: 8px; }
+  .book-link { font-size: 11px; padding: 5px 10px; }
+}
+
+/* Small phone (iPhone SE, etc.) */
+@media (max-width: 380px) {
+  .panel-form { padding: 0.9rem; }
+  .traveler-grid { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .result-total-brl { font-size: 1.4rem; }
+  .tab-btn { padding: 8px 10px; font-size: 11px; }
+}
+
+/* Touch targets - iOS minimum 44px */
+@media (hover: none) and (pointer: coarse) {
+  .btn-search,
+  .tab-btn,
+  .traveler-card,
+  .hotel-opt,
+  .date-mode-card { min-height: 44px; }
+  .book-link { min-height: 40px; display: inline-flex; align-items: center; }
+  .quick-btn { min-height: 34px; padding: 6px 12px; }
+  input[type=text], input[type=number], input[type=date],
+  input[type=month], select, textarea { min-height: 44px; font-size: 16px !important; }
+}
+
+/* iOS safe area (notch / Dynamic Island / home bar) */
+@supports (padding: max(0px)) {
+  .app-header {
+    padding-left: max(2rem, env(safe-area-inset-left));
+    padding-right: max(2rem, env(safe-area-inset-right));
+    padding-top: max(1.1rem, env(safe-area-inset-top));
+  }
+  .panel-form { padding-bottom: max(2rem, env(safe-area-inset-bottom)); }
+  @media (max-width: 600px) {
+    .panel-results { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+  }
+}
+
+/* Prevent iOS font-size zoom on inputs */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  select, textarea, input { font-size: 16px; }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div>
+    <div class="logo">Trip<em>Mind</em></div>
+    <div class="header-sub">Planejador inteligente de viagens</div>
+  </div>
+  <div class="header-spacer"></div>
+  <div class="header-badge">✈ JPA · REC → Mundo</div>
+</header>
+
+<div class="app-body">
+
+<!-- ══════════ FORM PANEL ══════════ -->
+<div class="panel-form">
+  <div class="panel-title">Onde quer ir?</div>
+  <div class="panel-sub">Preencha os dados e eu pesquiso tudo em tempo real.</div>
+
+  <!-- DESTINOS -->
+  <div class="form-section">
+    <div class="form-section-label">🌍 Destinos</div>
+    <div class="dest-input-row">
+      <input type="text" id="dest-input" placeholder="Ex: Paris, França..."
+        onkeydown="if(event.key==='Enter'){event.preventDefault();addDest();}"
+        onkeyup="if(event.key==='Enter'){event.preventDefault();}">
+      <button onclick="event.preventDefault();addDest();" type="button">+ Adicionar</button>
+    </div>
+    <div class="dest-tags" id="dest-tags"></div>
+    <div class="quick-dest">
+      <span style="font-size:11px;color:var(--muted);margin-right:2px">Sugestões:</span>
+      <button class="quick-btn" onclick="quickDest('Paris, França')">🇫🇷 Paris</button>
+      <button class="quick-btn" onclick="quickDest('Lisboa, Portugal')">🇵🇹 Lisboa</button>
+      <button class="quick-btn" onclick="quickDest('Roma, Itália')">🇮🇹 Roma</button>
+      <button class="quick-btn" onclick="quickDest('Madrid, Espanha')">🇪🇸 Madrid</button>
+      <button class="quick-btn" onclick="quickDest('Barcelona, Espanha')">🇪🇸 Barcelona</button>
+      <button class="quick-btn" onclick="quickDest('Amsterdam, Holanda')">🇳🇱 Amsterdam</button>
+      <button class="quick-btn" onclick="quickDest('Londres, Reino Unido')">🇬🇧 Londres</button>
+      <button class="quick-btn" onclick="quickDest('Tóquio, Japão')">🇯🇵 Tóquio</button>
+      <button class="quick-btn" onclick="quickDest('Buenos Aires, Argentina')">🇦🇷 Buenos Aires</button>
+      <button class="quick-btn" onclick="quickDest('Nova York, EUA')">🇺🇸 Nova York</button>
+    </div>
+  </div>
+
+  <!-- PERÍODO -->
+  <div class="form-section">
+    <div class="form-section-label">📅 Período & modo de busca</div>
+
+    <!-- Modo de busca - 3 opções -->
+    <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:12px">
+      <div class="date-mode-card active" id="dm-fixed" onclick="setDateMode('fixed')">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:1.1rem">📌</span>
+          <div>
+            <div style="font-size:13px;font-weight:600">Datas definidas</div>
+            <div style="font-size:11px;color:var(--muted)">Tenho datas em mente — buscar com flexibilidade próxima</div>
+          </div>
+        </div>
+      </div>
+      <div class="date-mode-card" id="dm-best" onclick="setDateMode('best')">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:1.1rem">💰</span>
+          <div>
+            <div style="font-size:13px;font-weight:600">Melhor preço</div>
+            <div style="font-size:11px;color:var(--muted)">Buscar o período mais barato em uma janela de até 12 meses</div>
+          </div>
+        </div>
+      </div>
+      <div class="date-mode-card" id="dm-season" onclick="setDateMode('season')">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:1.1rem">🌦️</span>
+          <div>
+            <div style="font-size:13px;font-weight:600">Por estação do ano</div>
+            <div style="font-size:11px;color:var(--muted)">Escolho a estação — busco os melhores preços dentro dela</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modo Datas Definidas -->
+    <div id="mode-fixed">
+      <div class="input-row">
+        <div>
+          <label>Data de ida</label>
+          <input type="date" id="date-out" min=""
+            onchange="syncDateMin()"
+            style="-webkit-appearance: none; appearance: none;">
+        </div>
+        <div>
+          <label>Data de volta</label>
+          <input type="date" id="date-back" min=""
+            style="-webkit-appearance: none; appearance: none;">
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <label>Flexibilidade</label>
+        <select id="flex-dates">
+          <option value="none">Datas exatas</option>
+          <option value="3" selected>±3 dias — variações próximas</option>
+          <option value="7">±7 dias — mais opções</option>
+          <option value="14">±14 dias — boa economia</option>
+          <option value="30">±30 dias — máxima flexibilidade</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Modo Melhor Preço -->
+    <div id="mode-best" style="display:none">
+      <div class="input-row">
+        <div>
+          <label>Duração da viagem (dias)</label>
+          <input type="number" id="trip-duration" min="2" max="60" value="10" placeholder="Ex: 10">
+        </div>
+        <div>
+          <label>A partir de (mês base)</label>
+          <input type="month" id="base-month">
+        </div>
+      </div>
+      <div style="margin-top:10px">
+        <label>Janela de busca</label>
+        <select id="search-window">
+          <option value="3">3 meses antes e depois da data base</option>
+          <option value="6" selected>6 meses antes e depois (recomendado)</option>
+          <option value="12">12 meses — máxima amplitude</option>
+        </select>
+      </div>
+      <div style="margin-top:8px;padding:8px 10px;background:#EFF6FF;border-radius:6px;font-size:11px;color:#1E40AF">
+        💡 Vou buscar os <strong>3 períodos mais baratos</strong> nessa janela e mostrar a economia de cada um em relação às datas mais caras.
+      </div>
+    </div>
+
+    <!-- Modo Por Estação -->
+    <div id="mode-season" style="display:none">
+      <div class="input-row" style="margin-bottom:10px">
+        <div>
+          <label>Destino / Região</label>
+          <select id="season-dest-type" onchange="updateSeasonHemisphere()">
+            <option value="north">Hemisfério Norte (Europa, EUA, Ásia...)</option>
+            <option value="south">Hemisfério Sul (Brasil, Argentina, África do Sul...)</option>
+            <option value="tropical">Zona Tropical (Caribe, Sudeste Asiático, Maldivas...)</option>
+          </select>
+        </div>
+        <div>
+          <label>Ano</label>
+          <select id="season-year">
+            <option value="2026" selected>2026</option>
+            <option value="2027">2027</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Estação do ano no destino</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px;margin-bottom:10px" id="season-grid">
+        <div class="season-opt-card active" id="so-spring" onclick="selectSeason('spring')">
+          <div style="font-size:1.2rem">🌸</div>
+          <div style="font-size:13px;font-weight:600" id="so-spring-label">Primavera</div>
+          <div style="font-size:10px;color:var(--muted)" id="so-spring-months">Mar–Mai</div>
+        </div>
+        <div class="season-opt-card" id="so-summer" onclick="selectSeason('summer')">
+          <div style="font-size:1.2rem">☀️</div>
+          <div style="font-size:13px;font-weight:600" id="so-summer-label">Verão</div>
+          <div style="font-size:10px;color:var(--muted)" id="so-summer-months">Jun–Ago</div>
+        </div>
+        <div class="season-opt-card" id="so-autumn" onclick="selectSeason('autumn')">
+          <div style="font-size:1.2rem">🍂</div>
+          <div style="font-size:13px;font-weight:600" id="so-autumn-label">Outono</div>
+          <div style="font-size:10px;color:var(--muted)" id="so-autumn-months">Set–Nov</div>
+        </div>
+        <div class="season-opt-card" id="so-winter" onclick="selectSeason('winter')">
+          <div style="font-size:1.2rem">❄️</div>
+          <div style="font-size:13px;font-weight:600" id="so-winter-label">Inverno</div>
+          <div style="font-size:10px;color:var(--muted)" id="so-winter-months">Dez–Fev</div>
+        </div>
+      </div>
+
+      <div class="input-row">
+        <div>
+          <label>Duração da viagem (dias)</label>
+          <input type="number" id="season-duration" min="3" max="60" value="10">
+        </div>
+        <div>
+          <label>Prioridade dentro da estação</label>
+          <select id="season-priority">
+            <option value="cheapest">💰 Mais barato</option>
+            <option value="weather">🌤 Melhor clima</option>
+            <option value="balanced" selected>⚖️ Equilibrado</option>
+            <option value="lowcrowd">😌 Menos turistas</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="season-info-box" style="margin-top:10px;padding:9px 12px;background:#F0FDF4;border-radius:8px;font-size:11px;color:#166534;border:1px solid #BBF7D0">
+        🌸 <strong>Primavera no Hemisfério Norte:</strong> março a maio. Clima ameno, flores em flor, menos turistas que o verão. Geralmente boa relação custo-benefício.
+      </div>
+    </div>
+  </div>
+
+  <!-- VIAJANTES -->
+  <div class="form-section">
+    <div class="form-section-label">👥 Quem vai</div>
+    <div class="traveler-grid">
+      <div class="traveler-card" id="tc-solo" onclick="selectTraveler('solo')">
+        <span class="tc-icon">🧳</span>
+        <span class="tc-label">Só eu</span>
+      </div>
+      <div class="traveler-card" id="tc-couple" onclick="selectTraveler('couple')">
+        <span class="tc-icon">👫</span>
+        <span class="tc-label">Casal</span>
+      </div>
+      <div class="traveler-card active" id="tc-family" onclick="selectTraveler('family')">
+        <span class="tc-icon">👨‍👩‍👧‍👦</span>
+        <span class="tc-label">Família</span>
+      </div>
+      <div class="traveler-card" id="tc-group" onclick="selectTraveler('group')">
+        <span class="tc-icon">👥</span>
+        <span class="tc-label">Grupo</span>
+      </div>
+    </div>
+
+    <div class="children-ages show" id="children-ages">
+      <label style="margin-top:12px">Idades das crianças</label>
+      <div class="age-input-row">
+        <input type="number" id="age-input" placeholder="Ex: 7" min="0" max="17" onkeydown="if(event.key==='Enter')addAge()">
+        <button onclick="event.preventDefault();addAge();" type="button">+ Idade</button>
+      </div>
+      <div class="age-tags" id="age-tags">
+        <div class="age-tag">7 anos <button onclick="removeAge(this)">×</button></div>
+        <div class="age-tag">13 anos <button onclick="removeAge(this)">×</button></div>
+      </div>
+    </div>
+
+    <div id="group-size-wrap" style="display:none;margin-top:12px">
+      <label>Número total de adultos</label>
+      <input type="number" id="group-size" min="2" max="20" value="4" placeholder="Ex: 4">
+    </div>
+  </div>
+
+  <!-- HOSPEDAGEM -->
+  <div class="form-section">
+    <div class="form-section-label">🏨 Estilo de hospedagem</div>
+    <div class="hotel-options">
+      <div class="hotel-opt" id="ho-comfort" onclick="selectHotel('comfort')">
+        <div class="hotel-opt-title">⭐⭐⭐ Conforto</div>
+        <div class="hotel-opt-sub">Hotel 3★ bem avaliado, boa localização</div>
+      </div>
+      <div class="hotel-opt active" id="ho-superior" onclick="selectHotel('superior')">
+        <div class="hotel-opt-title">⭐⭐⭐⭐ Superior</div>
+        <div class="hotel-opt-sub">Hotel 4★, excelente custo-benefício</div>
+      </div>
+      <div class="hotel-opt" id="ho-luxury" onclick="selectHotel('luxury')">
+        <div class="hotel-opt-title">⭐⭐⭐⭐⭐ Luxo</div>
+        <div class="hotel-opt-sub">Hotel 5★ ou boutique premium</div>
+      </div>
+      <div class="hotel-opt" id="ho-apartment" onclick="selectHotel('apartment')">
+        <div class="hotel-opt-title">🏠 Apartamento</div>
+        <div class="hotel-opt-sub">Airbnb ou apart-hotel familiar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREFERÊNCIAS -->
+  <div class="form-section">
+    <div class="form-section-label">🎯 Preferências e observações</div>
+    <textarea id="prefs" placeholder="Ex: preferimos experiências autênticas e imersivas. Adoramos mercados locais, culinária típica, bairros fora do circuito turístico, atividades culturais profundas. Não gostamos de tours de ônibus ou restaurantes para turistas. Crianças (7 e 13 anos) gostam de aventura e interatividade..."></textarea>
+  </div>
+
+  <!-- ORÇAMENTO LIMITE -->
+  <div class="form-section">
+    <div class="form-section-label">💰 Orçamento máximo (opcional)</div>
+    <div class="input-row">
+      <div>
+        <label>Valor em R$</label>
+        <input type="number" id="budget-limit" placeholder="Ex: 50000" min="0">
+      </div>
+      <div>
+        <label>Prioridade</label>
+        <select id="budget-priority">
+          <option value="balanced">Equilibrado</option>
+          <option value="flights">Priorizar voos</option>
+          <option value="hotels">Priorizar hotéis</option>
+          <option value="experiences">Priorizar experiências</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="error-box" id="form-error"></div>
+  <div id="debug-panel" style="display:none;margin-top:10px;background:#0f172a;border:1.5px solid #ef4444;border-radius:8px;padding:12px;font-size:11px;font-family:monospace;max-height:280px;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <span style="color:#ef4444;font-weight:700;font-size:12px">⚠️ Diagnóstico completo do erro</span>
+      <button onclick="copyDebugInfo()" style="background:#ef4444;color:#fff;border:none;border-radius:4px;padding:4px 10px;font-size:10px;cursor:pointer;font-family:inherit">📋 Copiar tudo</button>
+    </div>
+    <pre id="debug-content" style="color:#cbd5e1;white-space:pre-wrap;word-break:break-all;margin:0;font-size:10px;line-height:1.5"></pre>
+  </div>
+
+  <button class="btn-search" id="btn-search" onclick="startSearch()">
+    <span>🔍</span> <span id="btn-text">Pesquisar viagem completa</span>
+  </button>
+
+  <div style="text-align:center;margin-top:12px;font-size:11px;color:var(--muted)">
+    Saídas de João Pessoa (JPA) ou Recife (REC) — sempre o mais barato
+  </div>
+
+  <!-- History toggle -->
+  <div style="margin-top:1.25rem;border-top:1px solid var(--line);padding-top:1rem">
+    <button onclick="toggleHistory()" style="width:100%;padding:10px;background:none;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;font-weight:500;color:var(--ink2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px" id="history-toggle-btn">
+      📚 Ver histórico de pesquisas <span id="history-count-badge" style="background:var(--accent);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:99px;display:none">0</span>
+    </button>
+    <div id="history-sidebar" style="display:none;margin-top:10px">
+      <div id="history-sidebar-list"></div>
+    </div>
+  </div>
+
+  <!-- Comparator toggle -->
+  <div style="margin-top:8px">
+    <button onclick="toggleComparator()" style="width:100%;padding:10px;background:none;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px;font-weight:500;color:var(--ink2);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+      ⚖️ Comparar cenários salvos
+    </button>
+    <div id="comparator-panel" style="display:none;margin-top:10px">
+      <div id="comparator-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ RESULTS PANEL ══════════ -->
+<div class="panel-results">
+
+  <!-- Empty -->
+  <div class="empty-state" id="empty-state">
+    <div class="empty-icon">🗺</div>
+    <div class="empty-title">Seu próximo destino está aqui</div>
+    <div class="empty-sub">Preencha o formulário ao lado e eu pesquiso passagens, hospedagens, roteiro completo e orçamento em tempo real.</div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" id="loading-state">
+    <div class="loader"></div>
+    <div style="font-family:'DM Serif Display',serif;font-size:1.3rem;color:var(--ink2)" id="loading-title">Pesquisando sua viagem...</div>
+    <div style="font-size:12px;color:var(--muted);max-width:280px;text-align:center" id="loading-note">
+      A pesquisa completa pode levar até 90 segundos. Estamos buscando preços reais em tempo real.
+    </div>
+    <div class="loading-steps">
+      <div class="loading-step" id="step-1">✈️ Etapa 1/3: Buscando voos reais</div>
+      <div class="loading-step" id="step-2">🏨 Etapa 2/3: Buscando hospedagem</div>
+      <div class="loading-step" id="step-3">📅 Etapa 3/3: Montando roteiro e orçamento</div>
+      <div class="loading-step" id="step-4">Finalizando...</div>
+      <div class="loading-step" id="step-5">Calculando custos totais</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-area" id="results-area">
+
+    <!-- FX bar -->
+    <div class="fx-bar" id="fx-bar">
+      <div class="fx-item">💱</div>
+      <div id="fx-rates-display" style="display:flex;gap:16px;flex-wrap:wrap;flex:1"></div>
+      <span class="fx-update" id="fx-update-time"></span>
+      <button class="fx-edit-btn" onclick="refreshFx()">↺ Atualizar cotações</button>
+    </div>
+
+    <!-- Result header -->
+    <div class="result-header" id="result-header">
+      <div class="result-header-info">
+        <div class="result-trip-title" id="rh-title">—</div>
+        <div class="result-trip-meta" id="rh-meta">—</div>
+      </div>
+      <div class="result-total-box">
+        <div class="result-total-label">Orçamento total estimado</div>
+        <div class="result-total-brl" id="rh-total">R$ —</div>
+        <div class="result-total-note" id="rh-note">Todos os custos inclusos</div>
+        <div id="rh-per-person" style="font-size:11px;color:#93C5FD;margin-top:4px;display:none"></div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <!-- Export bar -->
+    <div class="export-bar" id="export-bar">
+      <button onclick="exportPDF()" class="export-btn">📄 Exportar PDF</button>
+      <button onclick="switchTab('checklist');setTimeout(()=>document.getElementById('tab-checklist').scrollIntoView({behavior:'smooth'}),100)" class="export-btn">✅ Checklist</button>
+      <button onclick="toggleComparator()" class="export-btn">⚖️ Comparar cenários</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('voos')">✈ Voos</button>
+      <button class="tab-btn" onclick="switchTab('hoteis')">🏨 Hospedagem</button>
+      <button class="tab-btn" onclick="switchTab('roteiro')">📅 Roteiro</button>
+      <button class="tab-btn" onclick="switchTab('orcamento')">💰 Orçamento</button>
+      <button class="tab-btn" onclick="switchTab('datas')">📆 Alternativas</button>
+      <button class="tab-btn" onclick="switchTab('checklist')">✅ Checklist</button>
+      <button class="tab-btn" onclick="switchTab('mapa')">🗺 Mapa</button>
+      <button class="tab-btn" onclick="switchTab('clima')">🌤 Clima</button>
+    </div>
+
+    <!-- Tab: Voos -->
+    <div class="tab-content active" id="tab-voos">
+      <div id="flights-content"><div class="card"><div class="card-sub">Carregando voos...</div></div></div>
+    </div>
+
+    <!-- Tab: Hotéis -->
+    <div class="tab-content" id="tab-hoteis">
+      <div id="hotels-content"><div class="card"><div class="card-sub">Carregando hospedagens...</div></div></div>
+    </div>
+
+    <!-- Tab: Roteiro -->
+    <div class="tab-content" id="tab-roteiro">
+      <div id="itinerary-content"><div class="card"><div class="card-sub">Carregando roteiro...</div></div></div>
+    </div>
+
+    <!-- Tab: Orçamento -->
+    <div class="tab-content" id="tab-orcamento">
+      <div id="budget-content"><div class="card"><div class="card-sub">Carregando orçamento...</div></div></div>
+    </div>
+
+    <!-- Tab: Datas alternativas -->
+    <div class="tab-content" id="tab-datas">
+      <div id="altdates-content"><div class="card"><div class="card-sub">Carregando sugestões de datas...</div></div></div>
+    </div>
+
+    <!-- Tab: Checklist -->
+    <div class="tab-content" id="tab-checklist">
+      <div id="checklist-content"><div class="card"><div class="card-sub">Carregando checklist...</div></div></div>
+    </div>
+
+    <!-- Tab: Mapa -->
+    <div class="tab-content" id="tab-mapa">
+      <div id="map-content">
+        <div id="trip-map" style="width:100%;height:500px;border-radius:12px;background:#e8e8e8;display:flex;align-items:center;justify-content:center;color:#999;font-size:14px">
+          Faça uma pesquisa para ver o mapa do roteiro
+        </div>
+        <div class="map-legend" id="map-legend" style="margin-top:10px"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Coordenadas verificadas via OpenStreetMap · Clique nos marcadores para detalhes</div>
+      </div>
+    </div>
+
+    <!-- Tab: Clima -->
+    <div class="tab-content" id="tab-clima">
+      <div id="weather-content"><div class="card"><div class="card-sub">Carregando dados de clima...</div></div></div>
+    </div>
+
+  </div><!-- /results-area -->
+
+  <!-- History Panel -->
+  <div id="history-panel" style="display:none;margin-top:1.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+      <div style="font-family:'DM Serif Display',serif;font-size:1.1rem">📚 Histórico de pesquisas</div>
+      <button onclick="clearHistory()" style="font-size:11px;color:var(--muted);background:none;border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit">Limpar histórico</button>
+    </div>
+    <div id="history-list"></div>
+  </div>
+</div><!-- /panel-results -->
+</div><!-- /app-body -->
+
+<script>
+// ══════════════════════════════════════════
+// TRIPMIND — Intelligent Travel Planner
+// Powered by Claude AI + Web Search
+// ══════════════════════════════════════════
+
+// ── STATE ──
+let state = {
+  destinations: [],
+  travelerType: 'family',
+  childrenAges: [7, 13],
+  hotelStyle: 'superior',
+  dateOut: '',
+  dateBack: '',
+  flexDates: '3',
+  dateMode: 'fixed',
+  tripDuration: 10,
+  baseMonth: '',
+  searchWindow: '6',
+  prefs: '',
+  budgetLimit: '',
+  budgetPriority: 'balanced',
+  fxRates: {},
+  result: null,
+};
+
+// ── FORM HELPERS ──
+function addDest() {
+  const inp = document.getElementById('dest-input');
+  if (!inp) return;
+  const val = inp.value.trim();
+  if (!val) return;
+  if (!Array.isArray(state.destinations)) state.destinations = [];
+  if (state.destinations.includes(val)) { inp.value = ''; return; }
+  state.destinations.push(val);
+  renderDestTags();
+  inp.value = '';
+  inp.focus();
+}
+
+function quickDest(dest) {
+  if (!state.destinations.includes(dest)) {
+    state.destinations.push(dest);
+    renderDestTags();
+  }
+}
+
+function removeDest(btn) {
+  const tag = btn.parentElement;
+  const name = tag.querySelector('span').textContent;
+  state.destinations = state.destinations.filter(d => d !== name);
+  renderDestTags();
+}
+
+function renderDestTags() {
+  const el = document.getElementById('dest-tags');
+  el.innerHTML = state.destinations.map(d =>
+    `<div class="dest-tag"><span>${d}</span><button onclick="removeDest(this)">×</button></div>`
+  ).join('');
+}
+
+function selectTraveler(type) {
+  state.travelerType = type;
+  document.querySelectorAll('.traveler-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('tc-' + type).classList.add('active');
+  document.getElementById('children-ages').classList.toggle('show', type === 'family');
+  document.getElementById('group-size-wrap').style.display = type === 'group' ? 'block' : 'none';
+}
+
+function addAge() {
+  const inp = document.getElementById('age-input');
+  const val = parseInt(inp.value);
+  if (isNaN(val) || val < 0 || val > 17) return;
+  state.childrenAges.push(val);
+  renderAgeTags();
+  inp.value = '';
+}
+
+function removeAge(btn) {
+  const tag = btn.parentElement;
+  const age = parseInt(tag.textContent);
+  const idx = state.childrenAges.indexOf(age);
+  if (idx > -1) state.childrenAges.splice(idx, 1);
+  renderAgeTags();
+}
+
+function renderAgeTags() {
+  const el = document.getElementById('age-tags');
+  el.innerHTML = state.childrenAges.map(a =>
+    `<div class="age-tag">${a} anos <button onclick="removeAge(this)">×</button></div>`
+  ).join('');
+}
+
+function selectHotel(style) {
+  state.hotelStyle = style;
+  document.querySelectorAll('.hotel-opt').forEach(o => o.classList.remove('active'));
+  document.getElementById('ho-' + style).classList.add('active');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector(`.tab-btn[onclick="switchTab('${tab}')"]`).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+function toggleDay(id) {
+  const body = document.getElementById('day-body-' + id);
+  const tog = document.getElementById('day-tog-' + id);
+  body.classList.toggle('open');
+  tog.classList.toggle('open');
+}
+
+// ── SET DATE DEFAULTS ──
+(function() {
+  const today = new Date();
+  const todayISO = today.toISOString().split('T')[0];
+  const d1 = new Date(today); d1.setMonth(d1.getMonth() + 3);
+  const d2 = new Date(d1); d2.setDate(d2.getDate() + 10);
+  const d1ISO = d1.toISOString().split('T')[0];
+  const d2ISO = d2.toISOString().split('T')[0];
+
+  const outEl = document.getElementById('date-out');
+  const backEl = document.getElementById('date-back');
+
+  outEl.value = d1ISO;
+  backEl.value = d2ISO;
+  outEl.min = todayISO;
+  backEl.min = d1ISO;
+
+  // Keep date-back min in sync
+  outEl.addEventListener('change', function() {
+    const v = formatDateISO(this.value);
+    if (v) backEl.min = v;
+  });
+
+  // Base month for "best price" mode
+  const baseMonthEl = document.getElementById('base-month');
+  if (baseMonthEl) baseMonthEl.value = d1ISO.slice(0,7);
+})();
+
+function syncDateMin() {
+  const v = formatDateISO(document.getElementById('date-out').value);
+  if (v) document.getElementById('date-back').min = v;
+}
+
+// ── FX HELPERS ──
+function fmtBRL(amount, currency, rates) {
+  if (!amount || isNaN(parseFloat(amount))) return '—';
+  const n = parseFloat(amount);
+  const rate = rates[currency] || rates['EUR'] || 5.92;
+  const brl = n * rate;
+  return 'R$\u00a0' + brl.toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+}
+
+function renderFxBar(rates) {
+  const el = document.getElementById('fx-rates-display');
+  const pairs = Object.entries(rates).map(([cur, rate]) =>
+    `<div class="fx-item">${cur}: <span class="fx-rate">R$ ${rate.toFixed(2)}</span></div>`
+  ).join('');
+  el.innerHTML = pairs;
+  document.getElementById('fx-update-time').textContent = '· ' + new Date().toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+}
+
+async function refreshFx() {
+  document.getElementById('fx-update-time').textContent = '· atualizando...';
+  // Will be called by the AI response with real rates
+}
+
+// ── VALIDATE FORM ──
+function validateForm() {
+  const errEl = document.getElementById('form-error');
+  errEl.classList.remove('show');
+
+  if (state.destinations.length === 0) {
+    errEl.textContent = 'Adicione pelo menos um destino.';
+    errEl.classList.add('show'); return false;
+  }
+  const mode = document.getElementById('dm-season').classList.contains('active') ? 'season'
+    : document.getElementById('dm-best').classList.contains('active') ? 'best' : 'fixed';
+  if (mode === 'season') {
+    const dur = parseInt(document.getElementById('season-duration')?.value);
+    if (!dur || dur < 3) {
+      errEl.textContent = 'Informe a duração da viagem (mínimo 3 dias).';
+      errEl.classList.add('show'); return false;
+    }
+    if (state.destinations.length === 0) {
+      errEl.textContent = 'Adicione pelo menos um destino.';
+      errEl.classList.add('show'); return false;
+    }
+    return true;
+  }
+  if (mode === 'fixed') {
+    var dOutRaw = document.getElementById('date-out').value;
+    var dBackRaw = document.getElementById('date-back').value;
+    if (!dOutRaw || !dBackRaw) {
+      errEl.textContent = 'Selecione as datas de ida e volta.';
+      errEl.classList.add('show'); return false;
+    }
+    var d1 = parseDate(dOutRaw);
+    var d2 = parseDate(dBackRaw);
+    if (!d1 || isNaN(d1.getTime())) {
+      errEl.textContent = 'Data de ida inválida: "' + dOutRaw + '". Use o seletor de datas.';
+      errEl.classList.add('show'); return false;
+    }
+    if (!d2 || isNaN(d2.getTime())) {
+      errEl.textContent = 'Data de volta inválida: "' + dBackRaw + '". Use o seletor de datas.';
+      errEl.classList.add('show'); return false;
+    }
+    if (d2 <= d1) {
+      errEl.textContent = 'A data de volta deve ser depois da data de ida.';
+      errEl.classList.add('show'); return false;
+    }
+  } else {
+    const dur = parseInt(document.getElementById('trip-duration')?.value);
+    if (!dur || dur < 2) {
+      errEl.textContent = 'Informe a duração da viagem (mínimo 2 dias).';
+      errEl.classList.add('show'); return false;
+    }
+  }
+  return true;
+}
+
+// Safe date parser - handles all browser formats
+function parseDate(str) {
+  if (!str) return null;
+  var s = str.trim();
+  // YYYY-MM-DD (standard)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    var parts = s.split('-').map(Number);
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+  // DD/MM/YYYY (Brazilian)
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+    var parts = s.split('/').map(Number);
+    return new Date(parts[2], parts[1] - 1, parts[0]);
+  }
+  // MM/DD/YYYY (US)
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+    var parts = s.split('/').map(Number);
+    return new Date(parts[2], parts[0] - 1, parts[1]);
+  }
+  // Native parse fallback
+  var d = new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Format any date string to YYYY-MM-DD
+function formatDateISO(str) {
+  if (!str) return '';
+  var s = str.trim();
+  // Already correct format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  var d = parseDate(s);
+  if (!d || isNaN(d.getTime())) return '';
+  var y = d.getFullYear();
+  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
+}
+
+// ── DATE MODE ──
+function setDateMode(mode) {
+  state.dateMode = mode;
+  document.querySelectorAll('.date-mode-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('dm-' + mode).classList.add('active');
+  document.getElementById('mode-fixed').style.display  = mode === 'fixed'  ? 'block' : 'none';
+  document.getElementById('mode-best').style.display   = mode === 'best'   ? 'block' : 'none';
+  document.getElementById('mode-season').style.display = mode === 'season' ? 'block' : 'none';
+}
+
+// ── SEASON MODE ──
+const SEASON_DATA = {
+  north: {
+    spring: { label:'Primavera', months:'Mar–Mai', dates:['03-01','05-31'], emoji:'🌸', note:'Clima ameno, flores, menos turistas que verão. Bom custo-benefício.' },
+    summer: { label:'Verão',     months:'Jun–Ago', dates:['06-01','08-31'], emoji:'☀️', note:'Alta temporada. Preços mais altos, muito movimento. Reserve com antecedência.' },
+    autumn: { label:'Outono',    months:'Set–Nov', dates:['09-01','11-30'], emoji:'🍂', note:'Clima agradável, menos turistas, preços caindo. Excelente escolha.' },
+    winter: { label:'Inverno',   months:'Dez–Fev', dates:['12-01','02-28'], emoji:'❄️', note:'Frio intenso em muitas regiões. Natal/Ano Novo = preços altos. Jan–Fev = baixa.' },
+  },
+  south: {
+    spring: { label:'Primavera', months:'Set–Nov', dates:['09-01','11-30'], emoji:'🌸', note:'Clima aquecendo, menos turistas. Ótima época para destinos do Sul.' },
+    summer: { label:'Verão',     months:'Dez–Fev', dates:['12-01','02-28'], emoji:'☀️', note:'Alta temporada. Férias brasileiras = preços elevados.' },
+    autumn: { label:'Outono',    months:'Mar–Mai', dates:['03-01','05-31'], emoji:'🍂', note:'Clima ameno, pós-Carnaval. Bons preços, menos movimento.' },
+    winter: { label:'Inverno',   months:'Jun–Ago', dates:['06-01','08-31'], emoji:'❄️', note:'Estação seca em muitas regiões. Julho = férias brasileiras, preços sobem.' },
+  },
+  tropical: {
+    spring: { label:'Estação Seca',   months:'Abr–Jun', dates:['04-01','06-30'], emoji:'🌤️', note:'Início da seca. Ótima visibilidade, menos chuvas. Bom preço.' },
+    summer: { label:'Pico Seco',      months:'Jul–Set', dates:['07-01','09-30'], emoji:'☀️', note:'Melhor época climática. Alta temporada turística.' },
+    autumn: { label:'Transição',      months:'Out–Nov', dates:['10-01','11-30'], emoji:'⛅', note:'Início das chuvas. Preços caindo, menos turistas.' },
+    winter: { label:'Estação Chuvosa',months:'Dez–Mar', dates:['12-01','03-31'], emoji:'🌧️', note:'Mais chuvas, mas temperaturas altas. Baixa temporada = melhores preços.' },
+  }
+};
+
+let selectedSeason = 'spring';
+let selectedHemisphere = 'north';
+
+function updateSeasonHemisphere() {
+  const hem = document.getElementById('season-dest-type').value;
+  selectedHemisphere = hem;
+  const data = SEASON_DATA[hem];
+  const seasons = ['spring','summer','autumn','winter'];
+  seasons.forEach(s => {
+    const sd = data[s];
+    const labelEl = document.getElementById('so-' + s + '-label');
+    const monthsEl = document.getElementById('so-' + s + '-months');
+    if (labelEl) labelEl.textContent = sd.emoji + ' ' + sd.label;
+    if (monthsEl) monthsEl.textContent = sd.months;
+  });
+  selectSeason(selectedSeason);
+}
+
+function selectSeason(season) {
+  selectedSeason = season;
+  document.querySelectorAll('.season-opt-card').forEach(c => c.classList.remove('active'));
+  document.getElementById('so-' + season).classList.add('active');
+  const hem = document.getElementById('season-dest-type')?.value || 'north';
+  const sd = SEASON_DATA[hem][season];
+  const infoBox = document.getElementById('season-info-box');
+  if (infoBox) {
+    infoBox.innerHTML = `${sd.emoji} <strong>${sd.label} (${sd.months}):</strong> ${sd.note}`;
+  }
+}
+
+// ── P1: REAL FX RATES ──
+async function fetchRealFxRates(currencies) {
+  // Open Exchange Rates — free, no key needed
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD', {
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!res.ok) throw new Error('FX API failed');
+    const data = await res.json();
+    if (!data.rates) throw new Error('No rates');
+    const usdToBrl = data.rates['BRL'] || 5.90;
+    const rates = { BRL: 1 };
+    for (const cur of currencies) {
+      if (data.rates[cur]) {
+        // Convert: 1 CUR = (1/rate_usd_to_cur) * usdToBrl
+        rates[cur] = (1 / data.rates[cur]) * usdToBrl;
+      }
+    }
+    // Always include common ones
+    if (data.rates['EUR']) rates['EUR'] = (1 / data.rates['EUR']) * usdToBrl;
+    if (data.rates['GBP']) rates['GBP'] = (1 / data.rates['GBP']) * usdToBrl;
+    if (data.rates['JPY']) rates['JPY'] = (1 / data.rates['JPY']) * usdToBrl;
+    if (data.rates['ARS']) rates['ARS'] = (1 / data.rates['ARS']) * usdToBrl;
+    rates['USD'] = usdToBrl;
+    console.log('FX rates fetched:', rates);
+    return rates;
+  } catch(e) {
+    console.warn('FX fetch failed, using cached/default:', e.message);
+    // Return last known or reasonable defaults
+    return state.fxRates && Object.keys(state.fxRates).length > 0
+      ? state.fxRates
+      : { EUR: 5.90, USD: 5.45, GBP: 7.10, JPY: 0.037, ARS: 0.006 };
+  }
+}
+
+// Detect currencies needed based on destinations
+function detectCurrencies(destinations) {
+  const map = {
+    'europa': ['EUR'], 'france': ['EUR'], 'paris': ['EUR'], 'espanha': ['EUR'],
+    'madrid': ['EUR'], 'barcelona': ['EUR'], 'italia': ['EUR'], 'roma': ['EUR'],
+    'portugal': ['EUR'], 'lisboa': ['EUR'], 'alemanha': ['EUR'], 'amsterdam': ['EUR'],
+    'reino unido': ['GBP'], 'londres': ['GBP'], 'england': ['GBP'],
+    'japão': ['JPY'], 'tóquio': ['JPY'], 'japan': ['JPY'],
+    'estados unidos': ['USD'], 'nova york': ['USD'], 'miami': ['USD'], 'eua': ['USD'],
+    'canada': ['CAD'], 'austrália': ['AUD'], 'china': ['CNY'],
+    'argentina': ['ARS'], 'buenos aires': ['ARS'],
+    'méxico': ['MXN'], 'tailândia': ['THB'], 'índia': ['INR'],
+    'turquia': ['TRY'], 'dubai': ['AED'], 'emirados': ['AED'],
+    'suíça': ['CHF'], 'suecia': ['SEK'], 'noruega': ['NOK'],
+    'chile': ['CLP'], 'peru': ['PEN'], 'colombia': ['COP'],
+    'marrocos': ['MAD'], 'africa do sul': ['ZAR'], 'egito': ['EGP'],
+  };
+  const needed = new Set(['EUR', 'USD']);
+  for (const dest of destinations) {
+    const d = dest.toLowerCase();
+    for (const [key, curs] of Object.entries(map)) {
+      if (d.includes(key)) curs.forEach(c => needed.add(c));
+    }
+  }
+  return [...needed];
+}
+
+// ── MAIN SEARCH ──
+// ── BUILD STEP-SPECIFIC PROMPTS ──
+function buildFlightPrompt() {
+  const adults = getAdults();
+  const children = getChildren();
+  const dest = state.destinations.join(', ');
+  const dateOut = state.dateOut || '';
+  const dateBack = state.dateBack || '';
+  const fxEur = state.fxRates?.EUR || 5.90;
+  const fxUsd = state.fxRates?.USD || 5.45;
+  const childInfo = children.length > 0 ? children.map(a => a + ' anos').join(', ') : 'nenhuma';
+
+  return `Pesquise passagens aéreas reais. Use web_search para cada busca.
+
+VIAGEM: João Pessoa/Recife → ${dest}
+DATA IDA: ${dateOut} | DATA VOLTA: ${dateBack}
+VIAJANTES: ${adults} adulto(s), crianças: ${childInfo}
+CÂMBIO ATUAL: EUR = R$${fxEur.toFixed(2)} | USD = R$${fxUsd.toFixed(2)}
+
+TAREFA:
+1. Buscar via web_search: "voos JPA ${dest} ${dateOut}" e "voos REC ${dest} ${dateOut}"
+2. Verificar LATAM, Azul, GOL, Iberia, TAP, Air France, KLM e demais que operam o trecho
+3. Para voo de volta: buscar "${dest} JPA REC ${dateBack}"
+4. Calcular preço total real para ${adults} adulto(s)${children.length > 0 ? ' + ' + children.length + ' criança(s)' : ''}
+
+REGRA CRÍTICA: Responda APENAS com JSON válido. Nenhum texto antes ou depois. Comece com { e termine com }.
+{
+  "flights": [
+    {
+      "type": "ida",
+      "origin": "JPA ou REC",
+      "airline": "nome",
+      "departDate": "${dateOut}",
+      "arriveDate": "data chegada",
+      "duration": "Xh Ymin",
+      "stops": 0,
+      "priceAdult": 0,
+      "priceChild": 0,
+      "totalBRL": 0,
+      "currency": "BRL",
+      "totalPriceBreakdown": "X adultos × R$Y = R$Z",
+      "source": "Google Flights / site cia",
+      "bookUrl": "url",
+      "score": "A",
+      "notes": ""
+    }
+  ],
+  "fxRates": {"EUR": ${fxEur}, "USD": ${fxUsd}},
+  "originRecommendation": "JPA ou REC — motivo"
+}`;
+}
+
+function buildHotelPrompt(flightData) {
+  const adults = getAdults();
+  const children = getChildren();
+  const dest = state.destinations.join(', ');
+  const dateOut = state.dateOut || '';
+  const dateBack = state.dateBack || '';
+  const nights = dateOut && dateBack ? Math.round((new Date(dateBack) - new Date(dateOut)) / 86400000) : 7;
+  const hotelDesc = {
+    comfort: 'Hotel 3★ nota mínima 8.0',
+    superior: 'Hotel 4★ nota mínima 8.5',
+    luxury: 'Hotel 5★ ou boutique',
+    apartment: 'Apartamento Airbnb/apart-hotel nota 4.7+'
+  }[state.hotelStyle] || 'Hotel 4★';
+  const fxEur = state.fxRates?.EUR || 5.90;
+
+  return `Pesquise hospedagem real. Use web_search para buscar opções.
+
+DESTINO: ${dest}
+CHECK-IN: ${dateOut} | CHECK-OUT: ${dateBack} (${nights} noites)
+VIAJANTES: ${adults} adulto(s)${children.length > 0 ? ' + ' + children.length + ' criança(s) (' + children.map(a=>a+' anos').join(', ') + ')' : ''}
+CATEGORIA: ${hotelDesc}
+CÂMBIO: EUR = R$${fxEur.toFixed(2)}
+
+TAREFA:
+1. Buscar via web_search: "hotel ${dest} ${dateOut} ${dateBack} booking"
+2. Buscar 2-3 opções bem avaliadas na categoria solicitada
+3. Verificar política de crianças se aplicável
+4. Confirmar preço real por noite
+
+REGRA CRÍTICA: Responda APENAS com JSON válido. Nenhum texto antes ou depois. Comece com { e termine com }.
+{
+  "hotels": [
+    {
+      "city": "${dest}",
+      "name": "nome real do hotel",
+      "stars": 4,
+      "rating": "8.9",
+      "neighborhood": "bairro",
+      "checkIn": "${dateOut}",
+      "checkOut": "${dateBack}",
+      "nights": ${nights},
+      "pricePerNight": 0,
+      "currency": "EUR",
+      "totalPriceBRL": 0,
+      "priceBreakdown": "${nights} noites × €X = €Y = R$Z",
+      "childPolicy": "crianças até X anos grátis",
+      "bookUrl": "url booking PT-BR",
+      "score": "A",
+      "notes": ""
+    }
+  ]
+}`;
+}
+
+function buildItineraryPrompt(flightData, hotelData) {
+  const dest = state.destinations.join(', ');
+  const dateOut = state.dateOut || '';
+  const dateBack = state.dateBack || '';
+  const nights = state.totalDays || 7;
+  const adults = getAdults();
+  const children = getChildren();
+  const fxEur = state.fxRates?.EUR || 5.90;
+  const fxUsd = state.fxRates?.USD || 5.45;
+  const childInfo = children.length > 0 ? children.map(a=>a+' anos').join(', ') : 'nenhuma';
+  const prefs = state.prefs || 'experiências autênticas, gastronomia local';
+  const flightTotal = (flightData?.flights||[]).reduce((s,f)=>s+(f.totalBRL||f.totalPriceBRL||0),0);
+  const hotelTotal = (hotelData?.hotels||[]).reduce((s,h)=>s+(h.totalPriceBRL||0),0);
+  const budgetLimit = state.budgetLimit ? parseInt(state.budgetLimit) : 0;
+  const remaining = budgetLimit ? Math.max(0, budgetLimit - flightTotal - hotelTotal) : 99999;
+  const civitatisUrl = 'https://www.civitatis.com/pt/' + encodeURIComponent(dest.toLowerCase().replace(/[\s,]+/g,'-').replace(/[^a-z0-9-]/g,'')) + '/';
+  const gygUrl = 'https://www.getyourguide.com.br/s/?q=' + encodeURIComponent(dest) + '&adults=' + adults + children.map(a=>'&childrenAges='+a).join('');
+  const viatorUrl = 'https://www.viator.com/pt-BR/search?q=' + encodeURIComponent(dest);
+
+  return `Monte roteiro COMPLETO de ${nights} dias para ${dest}.
+Viajantes: ${adults} adulto(s), crianças: ${childInfo}.
+Preferências: ${prefs}.
+Câmbio atual: EUR=R$${fxEur.toFixed(2)}, USD=R$${fxUsd.toFixed(2)}.
+Voos pesquisados: R$${flightTotal.toLocaleString('pt-BR')} | Hotel pesquisado: R$${hotelTotal.toLocaleString('pt-BR')}
+Disponível para atrações+alimentação: R$${remaining.toLocaleString('pt-BR')}
+
+Use web_search para verificar preços ATUAIS das principais atrações pagas.
+Para cada atração paga forneça link real de compra:
+- Civitatis PT: ${civitatisUrl}
+- GetYourGuide BR: ${gygUrl}
+- Viator PT-BR: ${viatorUrl}
+
+Para cada dia inclua TODOS os gastos reais:
+- Café da manhã (preço local real, indicar se incluso no hotel)
+- Almoço em restaurante popular local com preço típico
+- Jantar variado com preço típico
+- Bebidas incluindo alcoólicas por refeição
+- Ingressos de atrações com preço atual verificado
+- Transporte local diário (metrô/ônibus/táxi)
+- Transfer aeroporto dia 1 e último dia
+- Gorjetas conforme costume do país
+- Lanches ao longo do dia
+
+Organize cada dia logisticamente: atrações próximas no mesmo dia para minimizar deslocamentos.
+NÃO inclua checklist nem mapa — apenas roteiro e orçamento.
+
+REGRA CRÍTICA: Responda APENAS com JSON válido. Nenhum texto antes ou depois. Comece com { e termine com }.
+{"tripTitle":"string","period":"${dateOut} a ${dateBack}","totalDays":${nights},"travelers":"${adults} adulto(s)${children.length>0?' + '+children.length+' criança(s)':''}","fxRates":{"EUR":${fxEur},"USD":${fxUsd}},"seasonInfo":{"classification":"baixa|média|alta","label":"string","note":"string"},"itinerary":[{"day":1,"date":"string","isoDate":"${dateOut}","city":"${dest}","title":"string","dayTotalBRL":0,"dayBreakdown":"resumo dos custos do dia","items":[{"time":"09:00","category":"food|visit|transp|tour|hotel","name":"string","description":"string","whyThisOne":"string","tripAdvisorRating":"4.8 (2.000)","insiderTip":"string","bestTime":"string","touristLevel":"local|misto|turístico","pricePerPerson":0,"childPricePerPerson":0,"childFree":false,"currency":"EUR","priceBRL":0,"totalBRL":0,"priceBreakdown":"2×€15=€30=R$182","verified":false,"bookUrl":"url civitatis/gyg/viator","requiresAdvanceBooking":false,"notes":"string"}]}],"budget":{"flights":{"brl":${flightTotal},"note":"pesquisado em tempo real"},"hotels":{"brl":${hotelTotal},"note":"pesquisado em tempo real"},"food":{"brl":0,"note":"café+almoço+jantar+bebidas estimado por dia"},"attractions":{"brl":0,"note":"verificado via web_search"},"transport":{"brl":0,"note":"transporte local+transfers"},"misc":{"brl":0,"note":"gorjetas+imprevistos 10%"},"total":{"brl":0},"perPerson":{"adult":0,"child":0},"withinLimit":true,"budgetOptimization":[{"action":"string","savingBRL":0,"tradeoff":"string"}]},"priorities":[{"urgency":"now","item":"string","reason":"string"}],"warnings":[],"tips":[],"altDates":[]}`;
+}
+
+async function startSearch() {
+  if (!validateForm()) return;
+
+  const neededCurrencies = detectCurrencies(state.destinations);
+  state.fxRates = await fetchRealFxRates(neededCurrencies);
+
+  if (document.getElementById('dm-season').classList.contains('active')) {
+    state.dateMode = 'season';
+  } else if (document.getElementById('dm-best').classList.contains('active')) {
+    state.dateMode = 'best';
+  } else {
+    state.dateMode = 'fixed';
+  }
+  state.dateOut = formatDateISO(document.getElementById('date-out').value);
+  state.dateBack = formatDateISO(document.getElementById('date-back').value);
+  state.flexDates = document.getElementById('flex-dates')?.value || '3';
+  state.tripDuration = parseInt(document.getElementById('trip-duration')?.value) || 10;
+  state.baseMonth = document.getElementById('base-month')?.value || '';
+  state.searchWindow = document.getElementById('search-window')?.value || '6';
+  state.seasonSelected = selectedSeason;
+  state.seasonHemisphere = document.getElementById('season-dest-type')?.value || 'north';
+  state.seasonYear = document.getElementById('season-year')?.value || '2026';
+  state.seasonDuration = parseInt(document.getElementById('season-duration')?.value) || 10;
+  state.seasonPriority = document.getElementById('season-priority')?.value || 'balanced';
+  state.prefs = document.getElementById('prefs').value;
+  state.budgetLimit = document.getElementById('budget-limit').value;
+  state.budgetPriority = document.getElementById('budget-priority').value;
+  state.travelerType = document.querySelector('.traveler-btn.active')?.dataset.type || 'family';
+  state.childrenAges = getChildren();
+  state.hotelStyle = document.querySelector('.hotel-btn.active')?.dataset.style || 'superior';
+  state.totalDays = state.dateOut && state.dateBack
+    ? Math.round((new Date(state.dateBack) - new Date(state.dateOut)) / 86400000)
+    : (state.tripDuration || 10);
+
+  const loading = document.getElementById('loading-state');
+  const btnSearch = document.getElementById('btn-search');
+  loading.classList.add('show');
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('results-area').classList.remove('show');
+  btnSearch.disabled = true;
+  document.getElementById('btn-text').textContent = 'Pesquisando...';
+  // Hide previous error and debug panel
+  const prevErr = document.getElementById('form-error');
+  if (prevErr) prevErr.style.display = 'none';
+  const prevDebug = document.getElementById('debug-panel');
+  if (prevDebug) prevDebug.style.display = 'none';
+
+  const titleEl = document.getElementById('loading-title');
+  const noteEl = document.getElementById('loading-note');
+
+  function setStep(n, msg) {
+    ['step-1','step-2','step-3','step-4','step-5'].forEach((id, idx) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('active','done');
+      if (idx < n-1) el.classList.add('done');
+      else if (idx === n-1) el.classList.add('active');
+    });
+    if (titleEl) titleEl.textContent = msg;
+    if (noteEl) noteEl.textContent = 'Buscando preços reais — aguarde cada etapa';
+  }
+
+  try {
+    // Debug tracking
+    window._debugSteps = [];
+    window._debugRaw = [];
+
+    // ETAPA 1: VOOS REAIS
+    setStep(1, '✈️ Etapa 1/3 — Buscando voos reais...');
+    let flightData = { flights: [] };
+    try {
+      const ft = await callAPI_single(buildFlightPrompt(), true, 4000);
+      window._debugRaw.push({ etapa: 1, tipo: 'voos', chars: ft ? ft.length : 0, preview: ft ? ft.substring(0, 200) : 'vazio' });
+      const fd = parseResponse(ft);
+      if (fd && fd.flights) flightData = fd;
+      if (flightData.fxRates) state.fxRates = { ...state.fxRates, ...flightData.fxRates };
+      window._debugSteps.push({ etapa: 1, status: 'OK', voos: (flightData.flights||[]).length });
+    } catch(e) {
+      window._debugSteps.push({ etapa: 1, status: 'ERRO', erro: e.message });
+      console.warn('Flight error:', e.message);
+    }
+    setStep(1, '✈️ Voos encontrados ✓');
+    // Show flights immediately so user sees progress
+    if (flightData.flights && flightData.flights.length > 0) {
+      document.getElementById('results-area').classList.add('show');
+      renderFlights(flightData.flights);
+    }
+    await sleep(300);
+
+    // ETAPA 2: HOTÉIS REAIS
+    setStep(2, '🏨 Etapa 2/3 — Buscando hospedagem...');
+    let hotelData = { hotels: [] };
+    try {
+      const ht = await callAPI_single(buildHotelPrompt(flightData), true, 3000);
+      window._debugRaw.push({ etapa: 2, tipo: 'hoteis', chars: ht ? ht.length : 0, preview: ht ? ht.substring(0, 200) : 'vazio' });
+      const hd = parseResponse(ht);
+      if (hd && hd.hotels) hotelData = hd;
+      window._debugSteps.push({ etapa: 2, status: 'OK', hoteis: (hotelData.hotels||[]).length });
+    } catch(e) {
+      window._debugSteps.push({ etapa: 2, status: 'ERRO', erro: e.message });
+      console.warn('Hotel error:', e.message);
+    }
+    setStep(2, '🏨 Hospedagem encontrada ✓');
+    // Show hotels immediately
+    if (hotelData.hotels && hotelData.hotels.length > 0) {
+      document.getElementById('results-area').classList.add('show');
+      renderHotels(hotelData.hotels);
+    }
+    await sleep(300);
+
+    // ETAPA 3: ROTEIRO COMPLETO + ORÇAMENTO
+    setStep(3, '📅 Etapa 3/3 — Montando roteiro completo...');
+    const itinTokens = Math.min(16000, Math.max(8000, (state.totalDays || 7) * 900 + 2000));
+    let itinText;
+    try {
+      itinText = await callAPI_single(buildItineraryPrompt(flightData, hotelData), false, itinTokens);
+      window._debugRaw.push({ etapa: 3, tipo: 'roteiro', chars: itinText ? itinText.length : 0, preview: (itinText || '').substring(0, 200) });
+      window._debugSteps.push({ etapa: 3, status: 'OK', chars: itinText ? itinText.length : 0 });
+    } catch(e) {
+      window._debugSteps.push({ etapa: 3, status: 'ERRO', erro: e.message });
+      throw e;
+    }
+    let result = parseResponse(itinText);
+
+    // Merge
+    if (!result.flights || result.flights.length === 0) result.flights = flightData.flights || [];
+    if (!result.hotels || result.hotels.length === 0) result.hotels = hotelData.hotels || [];
+    if (!result.fxRates) result.fxRates = state.fxRates;
+
+    const flightTotal = (result.flights||[]).reduce((s,f)=>s+(f.totalBRL||f.totalPriceBRL||0),0);
+    const hotelTotal = (result.hotels||[]).reduce((s,h)=>s+(h.totalPriceBRL||0),0);
+    if (result.budget) {
+      result.budget.flights = { brl: flightTotal, note: 'pesquisado em tempo real' };
+      result.budget.hotels = { brl: hotelTotal, note: 'pesquisado em tempo real' };
+    }
+
+    saveToHistory(result, state);
+    setStep(4, '✅ Pesquisa concluída!');
+    await sleep(400);
+    renderResults(result);
+
+  } catch(err) {
+    loading.classList.remove('show');
+    document.getElementById('empty-state').style.display = 'flex';
+    const errEl = document.getElementById('form-error');
+    const msg = err.message || 'Erro desconhecido';
+    if (msg.includes('upstream') || msg.includes('504') || msg.includes('502') || msg.includes('timeout')) {
+      errEl.textContent = '⏱ Conexão interrompida. Tente novamente.';
+    } else if (msg.includes('401') || msg.includes('403')) {
+      errEl.textContent = '🔑 Problema com a chave API. Verifique no Railway.';
+    } else if (msg.includes('balance') || msg.includes('credit') || msg.includes('crédito')) {
+      errEl.textContent = '💳 Créditos Anthropic esgotados. Adicione em console.anthropic.com';
+    } else {
+      errEl.textContent = '⚠️ ' + msg.substring(0, 150);
+    }
+    errEl.style.display = 'block';
+    // Show full debug info panel
+    const debugPanel = document.getElementById('debug-panel');
+    const debugContent = document.getElementById('debug-content');
+    if (debugPanel && debugContent) {
+      const debugInfo = {
+        timestamp: new Date().toISOString(),
+        erro: msg,
+        stack: (err.stack || '').split('\n').slice(0, 8).join('\n'),
+        etapas: window._debugSteps || [],
+        respostas: window._debugRaw || [],
+        busca: {
+          destinos: state.destinations,
+          datas: (state.dateOut || '') + ' a ' + (state.dateBack || ''),
+          dias: state.totalDays,
+          viajantes: state.travelerType,
+          criancas: state.childrenAges,
+          hotel: state.hotelStyle,
+          orcamento: state.budgetLimit
+        }
+      };
+      debugContent.textContent = JSON.stringify(debugInfo, null, 2);
+      debugPanel.style.display = 'block';
+    }
+    } finally {
+    loading.classList.remove('show');
+    btnSearch.disabled = false;
+    document.getElementById('btn-text').textContent = 'Pesquisar viagem completa';
+  }
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── BUILD PROMPT ──
+// ── BUDGET INSTRUCTIONS (extracted from template to avoid nested backtick syntax error) ──
+function buildBudgetInstructions() {
+  if (!state.budgetLimit) return 'Orçamento máximo: sem limite definido';
+
+  const limit = parseInt(state.budgetLimit);
+  const totalPax = getTotalPax();
+  const adultCount = getAdults();
+  const childCount = getChildren().length;
+  const childrenAges = getChildren();
+  const daysCount = state.dateOut && state.dateBack
+    ? Math.round((new Date(state.dateBack) - new Date(state.dateOut)) / 86400000)
+    : (state.tripDuration || state.seasonDuration || 10);
+  const destinations = state.destinations.join(', ');
+  const perAdult = Math.round(limit / (adultCount + childCount * 0.6));
+  const perChild = Math.round(perAdult * 0.6);
+  const fxEur = state.fxRates && state.fxRates.EUR ? state.fxRates.EUR : 5.90;
+
+  return 'Orçamento máximo total: R$ ' + limit.toLocaleString('pt-BR') + '\n'
+    + 'Viajantes: ' + adultCount + ' adulto(s)' + (childCount > 0 ? ' + ' + childCount + ' criança(s) (' + childrenAges.join(', ') + ' anos)' : '') + '\n'
+    + 'Duração: ' + daysCount + ' dias · Destinos: ' + destinations + '\n'
+    + '\n'
+    + '════════════════════════════════════════\n'
+    + 'INSTRUÇÕES DE ORÇAMENTO — LER COM ATENÇÃO\n'
+    + '════════════════════════════════════════\n'
+    + '\n'
+    + 'O orçamento de R$ ' + limit.toLocaleString('pt-BR') + ' é o TETO TOTAL. Não use percentuais fixos.\n'
+    + 'Construa o plano de baixo para cima: pesquise o custo real de cada elemento neste destino\n'
+    + 'específico e some tudo — o total deve caber no limite.\n'
+    + '\n'
+    + 'PASSO 1 — PESQUISE OS CUSTOS REAIS DO DESTINO AGORA:\n'
+    + 'Use web_search para verificar os preços atuais em ' + destinations + ':\n'
+    + '- Passagens JPA/REC → ' + destinations + ' (ida+volta, datas informadas, todas as cias)\n'
+    + '- Hospedagem: qual o preço médio por noite de hotel bem avaliado (nota 8+) neste destino nesta época\n'
+    + '- Custo real de refeição local: café da manhã em padaria/bar, almoço em restaurante popular, jantar moderado\n'
+    + '- Ingressos das principais atrações\n'
+    + '- Transporte local por dia (metrô, ônibus, táxi)\n'
+    + '\n'
+    + 'PASSO 2 — CALCULE O CUSTO REAL E VEJA O QUE CABE:\n'
+    + 'Após pesquisar os preços reais:\n'
+    + 'a) Some o custo mínimo de voos (não tem como fugir deste)\n'
+    + 'b) Calcule quanto sobra para hotel + comida + atrações\n'
+    + 'c) Com o que sobrou, defina a categoria de hotel que cabe\n'
+    + 'd) Com o que ainda sobrar, monte alimentação e atrações\n'
+    + '\n'
+    + 'PASSO 3 — ALIMENTAÇÃO INTELIGENTE (não use custo diário fixo):\n'
+    + 'Monte cada dia com ritmo realista e variado:\n'
+    + '\n'
+    + 'Manhã (todos os dias):\n'
+    + '- Opção econômica padrão: café + pão em padaria local, mercado ou café de bairro\n'
+    + '- Custo real para ' + destinations + ': pesquisar e usar o valor local\n'
+    + '- Se café incluso no hotel: custo zero neste slot\n'
+    + '\n'
+    + 'Almoço (maioria dos dias):\n'
+    + '- Padrão: restaurante popular local, menu do dia, street food de qualidade — autêntico\n'
+    + '- 1-2x na semana: almoço mais elaborado se o jantar for simples naquele dia\n'
+    + '\n'
+    + 'Jantar (variar ao longo da viagem):\n'
+    + '- ~50% dos dias: trattoria/bistrô/tasca local, autêntico e moderado (não turístico)\n'
+    + '- ~30% dos dias: restaurante bom mas não premium\n'
+    + '- ~20% dos dias (2-3 jantares no total): experiência gastronômica especial\n'
+    + '- Nunca: restaurante na calçada de monumento com fotos no menu\n'
+    + '\n'
+    + 'PASSO 4 — SE O TOTAL REAL ULTRAPASSAR O ORÇAMENTO:\n'
+    + '1. Apresente o plano que você avalia como ideal com o custo REAL\n'
+    + '2. Informe claramente: "Este plano custa R$X. Seu orçamento é R$ ' + limit.toLocaleString('pt-BR') + '. Diferença: R$Y"\n'
+    + '3. Liste em budgetOptimization as alternativas específicas com economia real em R$\n'
+    + '4. Deixe o usuário decidir\n'
+    + '\n'
+    + 'PASSO 5 — SE O DESTINO FOR INVIÁVEL PARA O ORÇAMENTO:\n'
+    + 'Se o custo mínimo real superar o orçamento em mais de 30%, dizer diretamente em warnings:\n'
+    + '"ATENÇÃO: O custo mínimo real para ' + destinations + ' com ' + totalPax + ' pessoas por ' + daysCount + ' dias\n'
+    + 'é de aproximadamente R$X — R$ ' + Math.round(limit/totalPax/daysCount).toLocaleString('pt-BR') + '/pessoa/dia\n'
+    + 'não é suficiente para este destino nesta configuração. Sugestões: [destinos alternativos]"\n'
+    + '\n'
+    + 'Custo por pessoa (referência):\n'
+    + '- Adulto: ~R$ ' + perAdult.toLocaleString('pt-BR') + ' total\n'
+    + '- Criança: ~R$ ' + perChild.toLocaleString('pt-BR') + ' total (média 60% do adulto)';
+}
+
+function buildPrompt() {
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'});
+
+  // ── Traveler composition ──
+  const adults = getAdults();
+  const children = getChildren();
+  const totalPax = adults + children.length;
+
+  // Classify children by airline age bands
+  const infants   = children.filter(a => a < 2);   // lap infant, usually free or ~10%
+  const youngKids = children.filter(a => a >= 2 && a <= 11); // child fare ~75%
+  const teens     = children.filter(a => a >= 12 && a <= 17); // adult fare most airlines
+
+  const travelerDesc = state.travelerType === 'solo' ? '1 adulto' :
+    state.travelerType === 'couple' ? '2 adultos (casal)' :
+    state.travelerType === 'group' ? `${adults} adultos (grupo)` :
+    `${adults} adultos + ${children.length} criança(s): ${children.map(a => a + ' anos').join(', ')}`;
+
+  const childBreakdown = children.length > 0 ? `
+Composição etária das crianças (impacta DIRETAMENTE nos preços):
+- Bebês/colos (< 2 anos): ${infants.length} — geralmente grátis nos voos (colo), paga taxa mínima; em hotéis geralmente grátis
+- Crianças (2–11 anos): ${youngKids.length} — tarifa reduzida em voos (~50–75% do adulto dependendo da cia); desconto ou grátis em hotéis e atrações
+- Adolescentes (12–17 anos): ${teens.length} — tarifa adulta na maioria das cias aéreas; desconto em atrações (verificar)
+IMPORTANTE: calcule o custo REAL de cada item levando em conta cada faixa etária. Não some simplesmente o preço adulto x total de pessoas.` : '';
+
+  // ── Date mode ──
+  let periodInstructions = '';
+  if (state.dateMode === 'season') {
+    const hem = state.seasonHemisphere || 'north';
+    const seasonKey = state.seasonSelected || 'spring';
+    const sd = SEASON_DATA[hem]?.[seasonKey] || {};
+    const year = state.seasonYear || '2026';
+    const dur = state.seasonDuration || 10;
+    const priority = state.seasonPriority || 'balanced';
+    const priorityLabels = {
+      cheapest: 'MAIS BARATO — encontrar os dias com menor preço de voo+hotel dentro da estação',
+      weather: 'MELHOR CLIMA — identificar o subperíodo com melhor clima histórico dentro da estação',
+      balanced: 'EQUILIBRADO — bom preço com bom clima, evitar feriados que encarecem',
+      lowcrowd: 'MENOS TURISTAS — identificar semanas de menor ocupação turística dentro da estação'
+    };
+    const [startMonth, endMonth] = sd.dates || ['03-01','05-31'];
+    // Handle winter crossing year boundary
+    let startDate = `${year}-${startMonth}`;
+    let endDate = `${year}-${endMonth}`;
+    if (seasonKey === 'winter' && hem === 'north') {
+      startDate = `${year}-12-01`;
+      endDate = `${parseInt(year)+1}-02-28`;
+    }
+    periodInstructions = `
+MODO BUSCA POR ESTAÇÃO:
+- Estação: ${sd.label || seasonKey} (${sd.months || ''}) no ${hem === 'north' ? 'Hemisfério Norte' : hem === 'south' ? 'Hemisfério Sul' : 'Trópicos'}
+- Período a varrer: ${startDate} até ${endDate}
+- Duração desejada da viagem: ${dur} dias
+- Prioridade: ${priorityLabels[priority]}
+
+TAREFA PRINCIPAL:
+1. Varrer TODA a estação buscando preços de voo (JPA/REC → destino) e hospedagem
+2. Identificar as 5 melhores janelas de ${dur} dias dentro da estação para esta prioridade
+3. Mostrar preço total estimado de cada janela + motivo (feriado, evento, baixa demanda, etc)
+4. Montar roteiro COMPLETO para a janela mais vantajosa encontrada
+5. Em altDates: retornar as outras 4 janelas como alternativas ordenadas
+
+CONTEXTO DA ESTAÇÃO para ${state.destinations.join(', ')}:
+- Verificar via web_search o clima típico de ${state.destinations[0]} nessa estação
+- Verificar feriados locais e nacionais no período
+- Verificar eventos ou festivais que possam impactar preços/experiência
+- Verificar se é alta ou baixa temporada turística para o destino nessa estação
+- Nota sobre essa estação: ${sd.note || ''}`;
+
+  } else if (state.dateMode === 'best') {
+    const win = state.searchWindow || '6';
+    const dur = state.tripDuration || 10;
+    const base = state.baseMonth
+      ? new Date(state.baseMonth + '-01').toLocaleDateString('pt-BR', {month:'long', year:'numeric'})
+      : 'próximos meses';
+    periodInstructions = `
+MODO MELHOR PREÇO:
+- Duração da viagem: ${dur} dias
+- Referência: ${base}
+- Janela: ${win} meses antes e depois (total ${parseInt(win)*2} meses de análise)
+- Pesquise preços em diferentes períodos — identifique os 3 mais baratos e os 2 mais caros
+- Leve em conta alta/baixa temporada, feriados BR e locais, férias escolares, eventos
+- Monte o roteiro completo para o período mais barato encontrado
+- Em altDates, retorne mínimo 3 opções ordenadas do mais barato ao mais caro com saving real em R$`;
+  } else {
+    const dOut = new Date(state.dateOut);
+    const dBack = new Date(state.dateBack);
+    const days = Math.round((dBack - dOut) / 86400000);
+    const dOutFmt = dOut.toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'});
+    const dBackFmt = dBack.toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'});
+    const flex = state.flexDates === 'none' ? 'Datas FIXAS — não sugerir alternativas próximas'
+      : `Flexibilidade ±${state.flexDates} dias — buscar se há datas mais baratas nesse intervalo`;
+    periodInstructions = `
+PERÍODO:
+- Ida: ${dOutFmt} | Volta: ${dBackFmt} | Total: ${days} dias
+- Flexibilidade: ${flex}`;
+  }
+
+  const hotelDesc = {
+    comfort:   'Hotel 3★ bem avaliado (nota mínima 8.0 Booking), boa localização, custo-benefício',
+    superior:  'Hotel 4★ excelente (nota mínima 8.5 Booking), ótima localização e serviço',
+    luxury:    'Hotel 5★ ou boutique de luxo, sem restrição de preço',
+    apartment: 'Apartamento familiar Airbnb/apart-hotel, espaçoso, cozinha, bem avaliado (mínimo 4.7★)',
+  }[state.hotelStyle];
+
+  return `Você é especialista em viagens com web search em tempo real. Data hoje: ${todayStr}.
+
+REGRA DE OURO: Use web_search para TODOS os preços. Nunca invente valores. Se não achar preço exato, indique "estimativa" e dê o site para verificar.
+
+═══════════════════════════════
+DADOS DA VIAGEM
+═══════════════════════════════
+Destinos: ${state.destinations.join(' → ')}
+Viajantes: ${travelerDesc} (${totalPax} pessoas no total)
+${childBreakdown}
+Hospedagem: ${hotelDesc}
+Preferências: ${state.prefs || 'experiências autênticas e imersivas, gastronomia local genuína, bairros fora do circuito turístico, atividades que permitam viver o destino como morador — não apenas visitar'}
+${buildBudgetInstructions()}
+${periodInstructions}
+
+═══════════════════════════════
+ORIGEM DOS VOOS — OBRIGATÓRIO
+═══════════════════════════════
+SEMPRE comparar e pesquisar nas duas origens:
+1. João Pessoa JPA — Aeroporto Presidente Castro Pinto
+2. Recife REC — Aeroporto Guararapes-Gilberto Freyre
+
+Regras de comparação:
+- Mostrar preço de ambas no resultado
+- Recomendar a mais barata considerando deslocamento JPA→REC (~R$ 150-200/trajeto)
+- Se diferença < R$ 500/pessoa total: recomendar JPA pela comodidade
+- Identificar se há voos diretos ou com escala de cada origem
+
+═══════════════════════════════
+PESQUISA DE VOOS — TODAS AS CIAS
+═══════════════════════════════
+⚠️ REGRA CRÍTICA DE DATAS: buscar especificamente para as datas abaixo.
+Não use datas aproximadas, não use "flights this month", não use datas de outros meses.
+Se não encontrar voo na data exata, dizer EXPLICITAMENTE "não encontrado para ${state.dateOut}" e sugerir datas próximas.
+
+Data exata de ida: ${state.dateOut || 'verificar com usuário'}
+Data exata de volta: ${state.dateBack || 'verificar com usuário'}
+
+Pesquise em TODAS as companhias que operam o trecho, sem exceção:
+- Companhias brasileiras: LATAM, Azul, GOL
+- Companhias internacionais relevantes para o trecho: Iberia, TAP, Air France, KLM, Lufthansa, British Airways, American Airlines, Delta, United, Emirates, Turkish Airlines, Alitalia/ITA, easyJet, Ryanair, Vueling, e qualquer outra que opere o trecho específico
+- Agregar resultados de: Google Flights (hl=pt-BR), Kayak.com.br, Skyscanner.com.br
+- Para cada voo encontrado, verificar se há tarifa específica para bebê, criança e adolescente
+
+COMPOSIÇÃO DE PREÇO POR FAIXA ETÁRIA (regras por cia):
+- LATAM/GOL/Azul: bebê (0-1) ~R$ 80-150 taxa; criança (2-11) ~75% adulto; adolescente (12+) tarifa adulta
+- Iberia/TAP/Air France: bebê (0-1) 10% adulto; criança (2-11) ~75% adulto; jovem (12-17) tarifa adulta
+- Low-cost (Ryanair, easyJet, Vueling): bebê taxa fixa ~€25-50; crianças 2+ tarifa quase igual ao adulto
+- CALCULE o total real: não multiplique simplesmente por ${totalPax}
+
+LINKS DIRETOS EM PT-BR para reserva (use bookUrl no JSON):
+- LATAM: https://www.latamairlines.com/br/pt/oferta-voos
+- Azul: https://www.voeazul.com.br/pt/br
+- GOL: https://www.voegol.com.br/pt/passagens-aereas
+- Iberia: https://www.iberia.com/pt/ (versão portuguesa)
+- TAP: https://www.tapairportugal.com/pt
+- Air France: https://www.airfrance.com.br
+- KLM: https://www.klm.com/travel/br_pt
+- Lufthansa: https://www.lufthansa.com/br/pt
+- British Airways: https://www.britishairways.com/pt-br
+- Turkish Airlines: https://www.turkishairlines.com/pt-br
+- Emirates: https://www.emirates.com/br/portuguese
+- Google Flights PT-BR: https://www.google.com/travel/flights?hl=pt-BR&curr=BRL
+
+═══════════════════════════════
+PESQUISA DE HOSPEDAGEM
+═══════════════════════════════
+- Booking.com: buscar em pt-br, nota mínima 8.0, nunca sugerir hostel/albergue
+- Airbnb: buscar apartamentos/casas bem avaliados se estilo "apartment"
+- Verificar se hotel tem política de crianças (camas extras, berços, área kids)
+- Para ${children.length > 0 ? `família com crianças (${children.map(a=>a+' anos').join(', ')})` : 'adultos'}: verificar se crianças ficam grátis no quarto dos pais ou precisam de quarto extra
+- Links PT-BR: Booking.com/search.pt-br.html, airbnb.com.br
+
+PREÇOS REAIS por composição:
+- Adultos: ${adults}
+- Crianças: ${children.map(a => a + ' anos').join(', ') || 'nenhuma'}
+- Verificar política de cada hotel para crianças no quarto dos pais
+
+═══════════════════════════════
+CURADORIA DO ROTEIRO — FILOSOFIA CENTRAL
+═══════════════════════════════
+O usuário quer EXPERIÊNCIAS AUTÊNTICAS e MEMORÁVEIS. Não é turista de lista de checklist.
+Gosta de viver os destinos de dentro, com profundidade.
+
+CRITÉRIOS DE SELEÇÃO DAS ATRAÇÕES (por ordem de prioridade):
+1. AVALIAÇÃO REAL DE VIAJANTES — buscar via web_search:
+   - TripAdvisor: atrações com nota 4.5+ e mínimo 500 avaliações (verificar ranking "coisas para fazer")
+   - Google Maps: nota 4.4+ com alto volume de avaliações
+   - GetYourGuide/Viator: tours com badge "Favorito dos viajantes" ou "Best Seller"
+   - Guia Michelin, Time Out, Condé Nast Traveler, Lonely Planet: quando aplicável
+   - Indicar SEMPRE a nota e número de avaliações: ex. "⭐ 4.8 (12.400 avaliações TripAdvisor)"
+
+2. HIERARQUIA DE EXPERIÊNCIAS — em cada destino, priorizar nesta ordem:
+   a) EXPERIÊNCIAS ÚNICAS E IMERSIVAS: mercados locais ao amanhecer, tour com morador local,
+      aula de culinária típica, visita a produtor de vinho/queijo/azeite, backstage de monumentos,
+      jantar em casa de família local, tour de street art com artista, concerto em local histórico,
+      passeio de barco em horário alternativo (amanhecer/entardecer), bairros não turísticos
+   b) CLÁSSICOS IMPERDÍVEIS (mas com abordagem diferenciada): os monumentos icônicos existem
+      por razão — mas sugerir o horário certo (primeira entrada, luz dourada, sem filas),
+      o ângulo menos óbvio, o tour privado vs. o massivo
+   c) GASTRONOMIA COMO EXPERIÊNCIA: não só "restaurante bom" mas mercado de produtores,
+      tour gastronômico de bairro, bar frequentado por locais (não turistas), degustação
+      de produto típico na origem, street food cult da cidade
+   d) NATUREZA E RESPIRAÇÃO: parques, mirantes, trilhas, jardins botânicos históricos —
+      momentos de pausa entre as experiências intensas
+
+3. O QUE EVITAR (a menos que seja genuinamente especial):
+   - Restaurantes na calçada de monumentos com cardápio em 8 idiomas e foto de cada prato
+   - Lojas de souvenir genéricas
+   - Tours de ônibus turístico com microfone (salvo exceção justificada)
+   - Museus extensos visitados por obrigação — preferir UM museu bem escolhido a três mediocres
+   - Atrações com fila de horas sem valor proporcional à experiência
+   - Qualquer coisa que o viajante vai esquecer em uma semana
+
+4. PARA CADA ATRAÇÃO/EXPERIÊNCIA SUGERIDA, incluir:
+   - Por que essa e não outra: "Escolhida por ser a experiência mais autêntica de X segundo Y avaliações no TripAdvisor"
+   - Nível de intensidade turística: 🟢 local / 🟡 misto / 🔴 muito turístico
+   - Melhor horário: manhã cedo, entardecer, noite — e por quê
+   - Dica insider que viajantes experientes mencionam nas avaliações
+   - Nota e volume de avaliações verificados
+
+5. ESTRUTURA DO DIA — ritmo inteligente:
+   - Máx 2-3 atrações/experiências significativas por dia (não maratona de 8 museus)
+   - Pausas estratégicas em cafés ou praças locais — esses momentos são experiências também
+   - Uma refeição por dia em lugar especial, as outras em lugares simples e autênticos
+   - Tempo livre não estruturado: "tarde livre para se perder pelo bairro X"
+   - Considerar energia de ${children.length > 0 ? 'crianças (pausas a cada 2-3h de atividade intensa)' : 'grupo'}
+
+6. TOURS E PASSEIOS GUIADOS — quando recomendar:
+   - Sempre que o contexto histórico/cultural fizer a experiência 3x mais rica
+   - Preferir guias locais especializados a tours genéricos de ônibus
+   - Guia em PORTUGUÊS quando disponível (verificar Civitatis, GetYourGuide, Viator)
+   - Tours pequenos/privados para ${travelerDesc} são muito superiores aos em grupo grande
+   - Verificar avaliações do guia específico, não só do tour em geral
+
+PARA CADA ATRAÇÃO/PASSEIO PAGO, incluir no JSON:
+- "whyThisOne": por que essa atração/experiência é a melhor escolha no destino
+- "tripAdvisorRating": nota e nº avaliações (verificar)
+- "insiderTip": dica que só quem esteve sabe
+- "bestTime": melhor horário/época para visitar
+- "touristLevel": "local" | "misto" | "turístico" | "muito turístico"
+- Preço adulto + preço criança (por faixa etária) — REAL, verificado
+- Se crianças menores de X anos entram grátis — especificar X
+- Se há tour em português disponível
+- bookUrl: link direto PT-BR para compra antecipada:
+   - Civitatis: https://www.civitatis.com/pt/[cidade]/
+   - GetYourGuide: https://www.getyourguide.com.br/s/?q=[atividade]&location=[cidade]&adults=${adults}${children.map(a => '&childrenAges='+a).join('')}
+   - Viator PT-BR: https://www.viator.com/pt-BR/tours/[cidade]/
+- requiresAdvanceBooking: true/false + onde e com quanto de antecedência
+
+CUSTO REAL POR ATRAÇÃO para ${travelerDesc}:
+- Calcular total levando em conta cada faixa etária
+- Separar: preço adulto / preço criança / total do grupo
+- Indicar se reserva antecipada é obrigatória ou recomendada
+
+CUSTOS DIÁRIOS REALISTAS — OBRIGATÓRIO:
+Para CADA DIA do roteiro, os custos devem refletir a realidade local com precisão:
+
+Alimentação (pesquisar preços reais no destino):
+- ☕ Café da manhã: se NÃO incluso no hotel → preço real de café+pão+suco em padaria/bar local
+  (ex: bar italiano = €3-5/pessoa; café parisiense = €8-12; NY diner = US$12-18)
+- 🥗 Almoço: preço médio de restaurante popular/bistrô (não turístico) por adulto e criança
+- 🍷 Jantar: preço médio de restaurante adequado ao perfil (família, gastronomia local)
+  Incluir: coperto/couvert se aplicável ao país, taxa de serviço
+- 🍦 Lanches/cafés ao longo do dia: sorvete, água, café, snacks turísticos
+- 🍺 Bebidas: incluir custo estimado de bebidas alcoólicas por refeição se perfil adulto/casal
+  (ex: vinho na Itália €15-25/garrafa no restaurante; cerveja em Munique €5-7; cocktail em NY US$15-20)
+
+Transportes locais (por dia):
+- Metro/ônibus/trem urbano: preço por pessoa, informar se há pass diário mais vantajoso
+- Táxi/Uber: quando necessário (aeroporto, noite, bagagens)
+- Transfer: se aplicável (aeroporto → hotel na chegada/saída)
+- Aluguel de bike/patinete se relevante para o destino
+
+Ingressos e passeios (verificar preço real atual):
+- Cada atração paga: preço adulto + preço criança + se há gratuidade por faixa etária
+- Tours guiados: preço real por pessoa (Civitatis/GYG/Viator)
+- Reserva antecipada: indicar se obrigatória e onde fazer
+- Gorjeta para guias se aplicável ao país
+
+Outros custos diários:
+- Cartões/passes turísticos vantajosos (City Pass, Museum Pass, etc.) — calcular se vale
+- Estacionamento se for de carro
+- Gorjetas: costumes do país (EUA obrigatório 15-20%, Europa opcional 5-10%, Japão não se dá)
+- Compras de farmácia, souvenirs pequenos: prever €10-20/dia
+- Wi-Fi/chip local se necessário
+
+FORMATO OBRIGATÓRIO para cada item do itinerary:
+Incluir "priceBreakdown" explicando o cálculo:
+Ex: "2 adultos × €15 + 1 criança(7 anos) × €8 = €38 = R$225"
+Para refeições: "Almoço 4 pessoas: 2 adultos €18 + 1 criança menu €9 + 1 criança €8 = €53 = R$314"
+
+═══════════════════════════════
+ANÁLISES OBRIGATÓRIAS
+═══════════════════════════════
+1. Cotação atual de TODAS as moedas dos países visitados vs BRL (buscar em tempo real)
+2. Classificação da temporada (baixa/média/alta/altíssima) com justificativa
+3. Tendência de preço dos voos (subindo/caindo/estável) e recomendação de quando comprar
+4. Eventos, feriados e alertas nas datas pesquisadas que afetam preços ou experiência
+5. Score A/B/C/D para cada voo (preço + tempo + cia + escalas) e hotel (preço×nota×localização)
+6. Prioridades de reserva: o que comprar AGORA vs. em breve vs. pode esperar
+7. Datas alternativas mais baratas (mínimo 3 opções se houver economia > R$ 800)
+8. CHECKLIST COMPLETO — VERIFICAR TUDO VIA WEB_SEARCH:
+   ⚠️ NUNCA invente requisitos. Pesquise a situação ATUAL de cada item.
+   
+   documents (pesquisar obrigatoriamente via web_search):
+   - Passaporte: verificar validade mínima exigida pelo país de destino HOJE
+   - Visto: verificar se brasileiros precisam de visto para ${state.destinations.join(' e ')} ATUALMENTE
+   - ETIAS: verificar via web_search se já entrou em vigor para Brasil e se é necessário — 
+     buscar "ETIAS brasileiros ${new Date().getFullYear()}" — não assuma, verifique
+   - Vacinas: verificar se há exigência de vacinas para entrada no país de destino
+   - Seguro viagem: verificar se é obrigatório (ex: Schengen exige)
+   
+   beforeBuying: listar o que precisa ser comprado com antecedência, em ordem de urgência
+   beforeTrip: chip internacional (verificar operadoras), câmbio (onde e quando), adaptador elétrico
+   packing: baseado no clima real do destino na época da viagem (pesquisar previsão histórica)
+   onArrival: primeiros passos ao chegar, como sair do aeroporto, ativar chip
+9. MAP POINTS: para cada atração/hotel/restaurante do roteiro, fornecer coordenadas lat/lng
+   (pesquisar no Google Maps se necessário) para montar o mapa do roteiro
+
+═══════════════════════════════
+FORMATO JSON — responda APENAS o JSON, sem texto antes ou depois
+═══════════════════════════════
+{
+  "tripTitle": "string",
+  "destinations": ["array"],
+  "period": "string",
+  "totalDays": 10,
+  "travelers": "${travelerDesc}",
+  "travelerBreakdown": {
+    "adults": ${adults},
+    "children": ${JSON.stringify(children)},
+    "infants": ${infants.length},
+    "youngKids": ${youngKids.length},
+    "teens": ${teens.length},
+    "totalPax": ${totalPax}
+  },
+  "fxRates": {"EUR": 5.92, "USD": 5.45},
+  "totalBRL": 45000,
+  "totalNote": "string — detalhamento do total",
+  "costPerPerson": {"adult": 8000, "child": 5000, "note": "string"},
+  "seasonInfo": {
+    "classification": "baixa|média|alta|altíssima",
+    "label": "string",
+    "note": "string — por que essa classificação"
+  },
+  "priceTrend": {
+    "direction": "subindo|caindo|estável",
+    "note": "Recomendação de quando comprar"
+  },
+  "alerts": [
+    {"type": "event|holiday|weather|strike", "title": "string", "impact": "alto|médio|baixo", "description": "string"}
+  ],
+  "flights": [
+    {
+      "type": "ida|volta|ida-e-volta",
+      "origin": "JPA|REC",
+      "originRecommended": true,
+      "originNote": "string — por que JPA ou REC",
+      "from": "cidade",
+      "fromCode": "XXX",
+      "to": "cidade",
+      "toCode": "XXX",
+      "airline": "string",
+      "flightNum": "string|null",
+      "departDate": "string",
+      "arriveDate": "string",
+      "duration": "string",
+      "stops": 0,
+      "stopCities": ["array — cidades de escala"],
+      "priceAdult": 2500,
+      "priceChild_0_1": 0,
+      "priceChild_2_11": 1800,
+      "priceChild_12_17": 2500,
+      "currency": "BRL",
+      "totalPriceBRL": 10000,
+      "totalPriceBreakdown": "2 adultos × R$2.500 + 1 criança(7 anos) × R$1.800 = R$6.800",
+      "score": "A|B|C|D",
+      "scoreNote": "string",
+      "badges": ["Direto", "Melhor preço", "Mais rápido"],
+      "source": "Google Flights / Kayak / site cia",
+      "bookUrl": "URL PT-BR do site da companhia ou Google Flights",
+      "bookUrlKayak": "https://www.kayak.com.br/...",
+      "bookUrlSkyscanner": "https://www.skyscanner.com.br/...",
+      "notes": "string — observações importantes"
+    }
+  ],
+  "hotels": [
+    {
+      "city": "string",
+      "name": "string",
+      "stars": 4,
+      "rating": "8.9",
+      "ratingCount": "string",
+      "address": "string",
+      "neighborhood": "string — bairro e por que é boa localização",
+      "checkIn": "string",
+      "checkOut": "string",
+      "nights": 5,
+      "roomConfig": "string — ex: 1 quarto duplo + berço, ou 2 quartos comunicantes",
+      "childPolicy": "string — política para crianças: grátis até X anos, precisa de quarto extra?",
+      "pricePerNight": 120,
+      "currency": "EUR",
+      "totalPriceBRL": 4200,
+      "priceBreakdown": "string — 5 noites × €120 = €600 = R$3.552",
+      "score": "A|B|C|D",
+      "scoreNote": "string",
+      "amenities": ["array"],
+      "source": "Booking.com",
+      "bookUrl": "https://www.booking.com/search.pt-br.html?ss=...",
+      "bookUrlAirbnb": "https://www.airbnb.com.br/...",
+      "notes": "string"
+    }
+  ],
+  "itinerary": [
+    {
+      "day": 1,
+      "date": "string por extenso",
+      "isoDate": "YYYY-MM-DD",
+      "city": "string",
+      "title": "string",
+      "dayTotalBRL": 800,
+      "dayBreakdown": "string — resumo do que compõe o custo do dia",
+      "items": [
+        {
+          "time": "09:00",
+          "category": "visit|food|flight|hotel|transp|misc|tour",
+          "name": "string",
+          "description": "string — o que é, por que é especial, o que o viajante vai sentir/aprender/viver",
+          "whyThisOne": "string — por que essa experiência e não outra no mesmo destino",
+          "tripAdvisorRating": "4.8 (3.200 avaliações)",
+          "insiderTip": "string — dica que só quem foi sabe, baseada em avaliações reais",
+          "bestTime": "string — melhor horário e por quê (ex: 8h antes das multidões, entardecer para luz)",
+          "touristLevel": "local|misto|turístico|muito turístico",
+          "pricePerPerson": 15,
+          "childPricePerPerson": 8,
+          "childFree": false,
+          "childFreeUpTo": null,
+          "currency": "EUR",
+          "priceBRL": 88,
+          "childPriceBRL": 47,
+          "totalBRL": 223,
+          "priceBreakdown": "string — 2 adultos × €15 + 1 criança(7) × €8 = €38 = R$224",
+          "free": false,
+          "bookUrl": "URL direta para compra em PT-BR se disponível",
+          "bookPlatform": "Civitatis|GetYourGuide|Viator|site oficial",
+          "requiresAdvanceBooking": true,
+          "advanceBookingNote": "string — onde reservar e com quanto de antecedência",
+          "notes": "string — horários de funcionamento, o que levar, como chegar"
+        }
+      ]
+    }
+  ],
+  "budget": {
+    "flights":     {"brl": 12000, "note": "string com breakdown por pessoa"},
+    "hotels":      {"brl": 8500,  "note": "string"},
+    "food":        {"brl": 6000,  "note": "string — média diária × dias"},
+    "attractions": {"brl": 2000,  "note": "string"},
+    "transport":   {"brl": 1500,  "note": "string"},
+    "misc":        {"brl": 1000,  "note": "gorjetas, compras, imprevistos 10%"},
+    "total":       {"brl": 31000},
+    "perPerson":   {"adult": 7750, "child": 5000},
+    "withinLimit": true,
+    "limitBRL": 40000,
+    "overBudgetBRL": 0,
+    "budgetOptimization": [
+      {"action": "string — o que cortar/trocar", "savingBRL": 1500, "tradeoff": "string — o que perde com isso"}
+    ]
+  },
+  "priorities": [
+    {"urgency": "now|soon|later", "item": "string", "reason": "string — por que essa urgência"}
+  ],
+  "altDates": [
+    {
+      "rank": 1,
+      "period": "string",
+      "dateOut": "YYYY-MM-DD",
+      "dateBack": "YYYY-MM-DD",
+      "savingBRL": 3000,
+      "saving": "string",
+      "flightPrice": "string — preço total voos nessa data",
+      "hotelPrice": "string — preço total hospedagem",
+      "season": "baixa|média|alta",
+      "reason": "string — por que é mais barato"
+    }
+  ],
+  "warnings": ["array — alertas importantes"],
+  "tips": ["array — dicas práticas"],
+  "checklist": {
+    "beforeBuying": [
+      {"item": "string — o que fazer/comprar antes", "urgency": "now|soon|later", "url": "link se aplicável", "note": "string"}
+    ],
+    "documents": [
+      {"item": "string — documento necessário", "note": "string — validade, onde tirar, prazo"}
+    ],
+    "beforeTrip": [
+      {"item": "string — preparativo antes de viajar", "urgency": "soon|later", "note": "string"}
+    ],
+    "packing": [
+      {"item": "string — o que levar considerando destino e época", "note": "string"}
+    ],
+    "onArrival": [
+      {"item": "string — o que fazer ao chegar", "note": "string"}
+    ]
+  },
+  "mapPoints": [
+    {"day": 1, "name": "string", "lat": 0.0, "lng": 0.0, "type": "hotel|attraction|restaurant|transport", "city": "string"}
+  ]
+}`;
+}
+
+
+// ── RAW API CALL (via proxy) ──
+async function callAPI(prompt) {
+  const response = await fetch('/api/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
+  });
+  const rawText = await response.text();
+  let data;
+  try { data = JSON.parse(rawText); } 
+  catch { throw new Error('Resposta inválida: ' + rawText.substring(0, 150)); }
+  if (!response.ok || data.error) throw new Error(data.error || 'Erro ' + response.status);
+  return data.text || '';
+}
+
+// ── P10: MULTI-DESTINATION ORCHESTRATOR ──
+// If multiple destinations, searches each segment separately
+async function callClaude(prompt) {
+  // For single destination OR season mode: use original single call
+  if (state.destinations.length <= 1 || state.dateMode === 'season' || state.dateMode === 'best') {
+    const text = await callAPI_single(prompt);
+    return parseResponse(text);
+  }
+
+  // MULTI-DESTINATION: sequential calls per segment
+  const dests = state.destinations;
+  const segments = [];
+
+  // Build segments: [origin→D1], [D1→D2], [D2→D3...], [Dlast→origin]
+  for (let i = 0; i < dests.length; i++) {
+    if (i === 0) {
+      segments.push({ type: 'international', from: 'JPA/REC Brasil', to: dests[0] });
+    }
+    if (i < dests.length - 1) {
+      segments.push({ type: 'internal', from: dests[i], to: dests[i+1] });
+    }
+  }
+  segments.push({ type: 'return', from: dests[dests.length-1], to: 'Brasil (REC/JPA)' });
+
+  // Update loading UI
+  document.getElementById('loading-title').textContent = `Pesquisando ${dests.length} destinos em etapas...`;
+
+  // Step 1: Research each transport segment
+  const transportResults = [];
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    updateSegmentStatus(i, 'active', `Buscando ${seg.from} → ${seg.to}...`);
+
+    const segPrompt = buildSegmentPrompt(seg, i, segments.length);
+    try {
+      const text = await callAPI_single(segPrompt);
+      const parsed = parseResponse(text);
+      transportResults.push({ segment: seg, data: parsed });
+      updateSegmentStatus(i, 'done', `${seg.from} → ${seg.to} ✓`);
+    } catch(e) {
+      updateSegmentStatus(i, 'error', `${seg.from} → ${seg.to}: ${e.message}`);
+      transportResults.push({ segment: seg, data: null, error: e.message });
+    }
+  }
+
+  // Step 2: Full itinerary with verified transport data
+  document.getElementById('loading-title').textContent = 'Montando roteiro completo com preços verificados...';
+  updateStepStatus('step-4', 'active');
+
+  const consolidatedPrompt = buildConsolidatedPrompt(transportResults, prompt);
+  const text = await callAPI_single(consolidatedPrompt);
+  return parseResponse(text);
+}
+
+// Build prompt for a single transport segment
+function buildSegmentPrompt(seg, idx, total) {
+  const adults = getAdults();
+  const children = getChildren();
+  const totalPax = getTotalPax();
+  const dateOut = state.dateOut || '';
+  const dateBack = state.dateBack || '';
+
+  // Calculate approximate date for this segment
+  const tripDays = state.totalDays || 10;
+  const daysPerDest = Math.floor(tripDays / state.destinations.length);
+
+  return 'Pesquise transporte para UM SEGMENTO ESPEC\u00CDFICO de uma viagem multiponto.\n\n'
+    + 'SEGMENTO ' + (idx+1) + ' de ' + total + ': ' + seg.from + ' \u2192 ' + seg.to + '\n'
+    + 'Tipo: ' + (seg.type === 'international' ? 'Voo internacional (sa\u00edda do Brasil)' : seg.type === 'return' ? 'Voo de retorno ao Brasil' : 'Transporte interno entre cidades') + '\n\n'
+    + 'PAR\u00c2METROS:\n'
+    + '- Viajantes: ' + adults + ' adultos' + (children.length > 0 ? ' + ' + children.length + ' crian\u00e7as (' + children.join(', ') + ' anos)' : '') + '\n'
+    + '- Data aproximada: ' + (seg.type === 'international' ? dateOut : seg.type === 'return' ? dateBack : 'durante a viagem em ' + (dateOut ? dateOut.slice(0,7) : '')) + '\n'
+    + '- Origem dos voos internacionais: comparar SEMPRE JPA (Jo\u00e3o Pessoa) e REC (Recife)\n\n'
+    + 'INSTRU\u00c7\u00d5ES:\n'
+    + '1. Pesquise AGORA via web_search os pre\u00e7os REAIS para esta data espec\u00edfica\n'
+    + '2. Para voo internacional: buscar em Google Flights, Kayak, LATAM, Iberia, TAP, Azul, GOL\n'
+    + '3. Para transporte interno: buscar TODAS as op\u00e7\u00f5es (voo, trem, \u00f4nibus) com pre\u00e7os reais\n'
+    + '4. Verificar disponibilidade na data informada, n\u00e3o em datas gen\u00e9ricas\n'
+    + '5. Se n\u00e3o encontrar pre\u00e7o exato: dizer "verificar em [site]" \u2014 NUNCA inventar\n\n'
+    + 'Responda APENAS com JSON:\n'
+    + '{\n'
+    + '  "segment": "' + seg.from + ' \u2192 ' + seg.to + '",\n'
+    + '  "type": "' + seg.type + '",\n'
+    + '  "options": [{"mode":"voo|trem|\u00f4nibus","operator":"nome","departDate":"data","duration":"dur","stops":0,"priceAdult":0,"priceChild":0,"totalBRL":0,"currency":"BRL","verified":true,"verifiedSource":"fonte","bookUrl":"url","notes":"obs"}],\n'
+    + '  "recommended": 0,\n'
+    + '  "totalForGroupBRL": 0,\n'
+    + '  "warning": "string se n\u00e3o encontrou dados exatos"\n'
+    + '}'
+}
+
+// Build consolidated prompt with verified transport data
+function buildConsolidatedPrompt(transportResults, originalPrompt) {
+  var lines = [];
+  for (var i = 0; i < transportResults.length; i++) {
+    var r = transportResults[i];
+    if (!r.data || !r.data.options) {
+      lines.push('SEGMENTO ' + r.segment.from + ' -> ' + r.segment.to + ': ERRO - ' + (r.error || 'dados nao encontrados'));
+    } else {
+      var best = r.data.options[r.data.recommended || 0] || {};
+      var seg = 'SEGMENTO ' + r.segment.from + ' -> ' + r.segment.to;
+      seg += ' | ' + (best.operator || '') + ' ' + (best.mode || '');
+      seg += ' | R$ ' + (best.totalBRL ? best.totalBRL.toLocaleString('pt-BR') : '?');
+      seg += ' | ' + (best.duration || '') + ' | Fonte: ' + (best.verifiedSource || '?');
+      lines.push(seg);
+    }
+  }
+  var separator = '======================================';
+  var header = 'TRANSPORTES JA PESQUISADOS E VERIFICADOS';
+  var note = 'Use EXATAMENTE estes dados no campo flights do JSON';
+  var instrucoes = 'IMPORTANTE: Inclua os precos acima exatamente. Foque em hoteis, atracoes e culinaria.';
+  return [originalPrompt, separator, header, note, separator, lines.join(' | '), instrucoes].join('\n');
+}
+
+function updateSegmentStatus(idx, status, label) {
+  let container = document.getElementById('segment-status-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'segment-status-container';
+    container.className = 'segment-status';
+    container.style.margin = '1rem 0';
+    const loadingEl = document.getElementById('loading-state');
+    if (loadingEl) loadingEl.appendChild(container);
+  }
+
+  let item = document.getElementById('seg-item-' + idx);
+  if (!item) {
+    item = document.createElement('div');
+    item.id = 'seg-item-' + idx;
+    item.className = 'segment-item';
+    item.innerHTML = `<div class="segment-dot seg-wait"></div><span></span>`;
+    container.appendChild(item);
+  }
+
+  const dot = item.querySelector('.segment-dot');
+  const span = item.querySelector('span');
+  dot.className = 'segment-dot ' + (status === 'done' ? 'seg-done' : status === 'active' ? 'seg-active' : 'seg-wait');
+  span.textContent = label;
+  if (status === 'done') item.classList.add('done');
+  if (status === 'active') item.classList.add('active');
+}
+
+function updateStepStatus(stepId, status) {
+  const el = document.getElementById(stepId);
+  if (!el) return;
+  el.classList.remove('active', 'done');
+  el.classList.add(status);
+}
+
+
+// Parse API response text into validated JSON // defined below
+
+// ── ACTUAL CALL CLAUDE (single destination) ──
+async function callAPI_single(prompt, useWebSearch, maxTokens) {
+  if (useWebSearch === undefined) useWebSearch = true;
+  if (maxTokens === undefined) maxTokens = 8000;
+  const response = await fetch('/api/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: prompt, useWebSearch: useWebSearch, maxTokens: maxTokens })
+  });
+  const rawText = await response.text();
+  let data;
+  try { data = JSON.parse(rawText); }
+  catch(e) { throw new Error('Resposta inválida: ' + rawText.substring(0, 150)); }
+  if (!response.ok || data.error) throw new Error(data.error || 'Erro ' + response.status);
+  const text = (data.text || '').trim();
+  if (!text) throw new Error('Claude não retornou texto. Tente novamente.');
+  return text;
+}
+
+
+function extractBestJSON(str) {
+  if (!str) return null;
+  // Strip preamble before first {
+  const firstBrace = str.indexOf('{');
+  if (firstBrace > 0) str = str.substring(firstBrace);
+  try { 
+    const parsed = JSON.parse(str);
+    if (parsed && (parsed.tripTitle || parsed.flights || parsed.hotels || parsed.itinerary || parsed.segment)) {
+      return parsed;
+    }
+  } catch {}
+  // Find largest valid JSON object
+  let best = null, bestLen = 0;
+  for (let i = 0; i < str.length; i++) {
+    if (str[i] !== '{') continue;
+    let depth = 0, j = i;
+    while (j < str.length) {
+      if (str[j] === '{') depth++;
+      else if (str[j] === '}') { depth--; if (depth === 0) break; }
+      j++;
+    }
+    if (depth === 0 && j > i) {
+      const candidate = str.slice(i, j + 1);
+      if (candidate.length > bestLen) {
+        try {
+          const parsed = JSON.parse(candidate);
+          if (parsed && typeof parsed === 'object') { best = parsed; bestLen = candidate.length; }
+        } catch {}
+      }
+    }
+  }
+  return best;
+}
+
+function parseResponse(text) {
+  const result = extractBestJSON(text);
+  if (result) return result;
+  console.error('parseResponse failed. Text:', text ? text.substring(0, 300) : 'empty');
+  throw new Error('JSON inválido na resposta');
+}
+
+// ── P5: DATA VALIDATOR ──
+function validateResultData(data) {
+  if (!data) data = {};
+  const warnings = [];
+
+  // Check required fields
+  if (!data.tripTitle) data.tripTitle = state.destinations.join(' + ');
+  if (!data.period) data.period = `${state.dateOut} → ${state.dateBack}`;
+  if (!data.totalDays) data.totalDays = 0;
+  if (!Array.isArray(data.flights)) { data.flights = []; warnings.push('Voos não retornados'); }
+  if (!Array.isArray(data.hotels)) { data.hotels = []; warnings.push('Hospedagem não retornada'); }
+  if (!Array.isArray(data.itinerary)) { data.itinerary = []; warnings.push('Roteiro não retornado'); }
+  if (!data.budget) data.budget = {};
+  if (!Array.isArray(data.altDates)) data.altDates = [];
+  if (!Array.isArray(data.warnings)) data.warnings = [];
+  if (!Array.isArray(data.tips)) data.tips = [];
+
+  // Check for suspiciously round numbers that might be invented
+  const suspectFlights = (data.flights || []).filter(f =>
+    f.totalPriceBRL && f.totalPriceBRL % 1000 === 0 && !f.source
+  );
+  if (suspectFlights.length > 0) {
+    warnings.push(`⚠️ ${suspectFlights.length} voo(s) com preços sem fonte verificada — confirmar antes de reservar`);
+  }
+
+  // Check budget vs limit
+  if (state.budgetLimit && data.budget?.total?.brl) {
+    const limit = parseInt(state.budgetLimit);
+    const total = data.budget.total.brl;
+    if (total > limit * 1.15) {
+      warnings.push(`⚠️ Orçamento estimado (R$ ${total.toLocaleString('pt-BR')}) supera o limite informado (R$ ${limit.toLocaleString('pt-BR')}) em ${Math.round((total/limit-1)*100)}%`);
+      data.budgetExceeded = true;
+      data.budgetExceededPct = Math.round((total/limit-1)*100);
+    }
+  }
+
+  // Add validation warnings to data
+  data.warnings = [...(data.warnings || []), ...warnings];
+  return data;
+}
+
+// ── RENDER RESULTS ──
+function renderResults(data) {
+  // P5: Validate before rendering
+  data = validateResultData(data);
+
+  state.result = data;
+  state.fxRates = (data.fxRates && Object.keys(data.fxRates).length > 0) ? data.fxRates : state.fxRates;
+
+  // FX bar
+  renderFxBar(state.fxRates);
+
+  // Header
+  document.getElementById('rh-title').textContent = data.tripTitle || state.destinations.join(' + ');
+
+  // Season + trend in meta
+  const seasonLabels = { baixa:'🟢 Baixa temporada', média:'🟡 Média temporada', alta:'🔴 Alta temporada', altíssima:'🔴 Altíssima temporada' };
+  const trendLabel = { subindo:'📈 Preços subindo', caindo:'📉 Preços caindo', estável:'➡️ Preços estáveis' };
+  const seasonStr = data.seasonInfo ? (seasonLabels[data.seasonInfo.classification] || data.seasonInfo.label || '') : '';
+  const trendStr = data.priceTrend ? (trendLabel[data.priceTrend.direction] || '') : '';
+  document.getElementById('rh-meta').textContent =
+    [data.period, data.travelers, data.totalDays + ' dias', seasonStr, trendStr].filter(Boolean).join(' · ');
+
+  document.getElementById('rh-total').textContent =
+    'R$\u00a0' + (data.budget?.total?.brl || data.totalBRL || 0).toLocaleString('pt-BR');
+  document.getElementById('rh-note').textContent = data.totalNote || 'Todos os custos inclusos';
+
+  // Budget vs limit in header
+  if (state.budgetLimit) {
+    const limit = parseInt(state.budgetLimit);
+    const total = data.budget?.total?.brl || data.totalBRL || 0;
+    const diff = total - limit;
+    const headerEl = document.getElementById('result-header');
+    if (headerEl && diff !== 0) {
+      const budgEl = document.createElement('div');
+      budgEl.style.cssText = `margin-top:8px;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;
+        background:${diff > 0 ? 'rgba(239,68,68,.2)' : 'rgba(34,197,94,.2)'};
+        color:${diff > 0 ? '#FCA5A5' : '#86EFAC'};display:inline-block`;
+      budgEl.textContent = diff > 0
+        ? `⚠️ Excede orçamento em R$ ${Math.abs(diff).toLocaleString('pt-BR')}`
+        : `✅ Dentro do orçamento — sobra R$ ${Math.abs(diff).toLocaleString('pt-BR')}`;
+      document.getElementById('rh-note').parentNode.appendChild(budgEl);
+    }
+  }
+  // Cost per person
+  if (data.costPerPerson || data.budget?.perPerson) {
+    const cpp = data.costPerPerson || data.budget.perPerson;
+    const ppEl = document.getElementById('rh-per-person');
+    if (ppEl && cpp) {
+      ppEl.style.display = 'block';
+      ppEl.textContent = cpp.adult
+        ? `~R$ ${cpp.adult.toLocaleString('pt-BR')}/adulto${cpp.child ? ' · R$ ' + cpp.child.toLocaleString('pt-BR') + '/criança' : ''}`
+        : '';
+    }
+  }
+
+  // Price trend note
+  if (data.priceTrend?.note) {
+    const trendEl = document.createElement('div');
+    trendEl.style.cssText = 'font-size:11px;color:#93C5FD;margin-top:4px;';
+    trendEl.textContent = '💡 ' + data.priceTrend.note;
+    document.getElementById('rh-note').parentNode.appendChild(trendEl);
+  }
+
+  // Alerts bar
+  if (data.alerts && data.alerts.length) {
+    const alertColors = { event:'#EDE9FE;border:#C4B5FD;color:#5B21B6', holiday:'#FEF3C7;border:#FDE68A;color:#92400E', weather:'#DBEAFE;border:#93C5FD;color:#1E40AF', strike:'#FEE2E2;border:#FCA5A5;color:#991B1B' };
+    const alertsHtml = data.alerts.map(a => {
+      const c = alertColors[a.type] || alertColors['event'];
+      const [bg, br, col] = c.split(';').map(x=>x.split(':')[1]);
+      return `<div style="background:${bg};border:1px solid ${br};color:${col};border-radius:8px;padding:8px 12px;font-size:12px;display:flex;gap:8px;align-items:flex-start">
+        <span style="font-weight:700;flex-shrink:0">${a.impact === 'alto' ? '⚠️' : 'ℹ️'} ${a.title}</span>
+        <span>${a.description || ''}</span>
+      </div>`;
+    }).join('');
+    const alertBar = document.createElement('div');
+    alertBar.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-bottom:1rem;';
+    alertBar.innerHTML = alertsHtml;
+    document.getElementById('results-area').insertBefore(alertBar, document.getElementById('results-area').children[1]);
+  }
+
+  // Save to history
+  saveToHistory(data, state);
+
+  // Render tabs
+  renderFlights(data.flights || []);
+  renderHotels(data.hotels || []);
+  renderItinerary(data.itinerary || []);
+  renderBudget(data.budget || {});
+  renderAltDates(data.altDates || []);
+
+  // Render new tabs
+  renderChecklist(data.checklist || {});
+  renderWeather(data.destinations || state.destinations, state.dateOut);
+  // Map: geocode points after a delay to not block rendering
+  setTimeout(() => renderMap(data.mapPoints || [], data.itinerary || []), 500);
+
+  // Show
+  document.getElementById('loading-state').classList.remove('show');
+  document.getElementById('results-area').classList.add('show');
+  document.getElementById('results-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── P8: MAP with real geocoding via Nominatim + Leaflet ──
+let leafletMap = null;
+
+async function geocodePlace(name, city) {
+  const q = encodeURIComponent(`${name}, ${city}`);
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`,
+      { headers: { 'Accept-Language': 'pt-BR,pt', 'User-Agent': 'TripMind/1.0' } }
+    );
+    const data = await res.json();
+    if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+  } catch(e) {}
+  return null;
+}
+
+async function renderMap(mapPoints, itinerary) {
+  const mapEl = document.getElementById('trip-map');
+  if (!mapEl) return;
+
+  // Load Leaflet if not already loaded
+  if (!window.L) {
+    await new Promise((resolve, reject) => {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
+      document.head.appendChild(link);
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  mapEl.style.height = '500px';
+  mapEl.innerHTML = '';
+
+  // Initialize or reset map
+  if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+  leafletMap = L.map(mapEl).setView([48.8566, 2.3522], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(leafletMap);
+
+  // Color per city
+  const cityColors = {};
+  const colors = ['#1C4ED8','#B84A2B','#2D5A1B','#5B21B6','#92400E','#0F766E'];
+  let colorIdx = 0;
+
+  // Collect points: use provided coordinates OR geocode
+  const pointsToShow = [];
+
+  // From mapPoints (Claude provided)
+  for (const pt of mapPoints) {
+    if (pt.lat && pt.lng && Math.abs(pt.lat) > 0.001) {
+      pointsToShow.push(pt);
+    }
+  }
+
+  // If no valid mapPoints, geocode from itinerary
+  if (pointsToShow.length === 0 && itinerary.length > 0) {
+    for (const day of itinerary.slice(0, 15)) {
+      if (!cityColors[dayCity]) {
+        cityColors[dayCity] = colors[colorIdx++ % colors.length];
+      }
+      for (const item of (day.items || []).slice(0, 3)) {
+        if (item.category === 'visit' || item.category === 'tour' || item.category === 'hotel') {
+          // Geocode via Nominatim (rate limit: 1 req/sec)
+          await new Promise(r => setTimeout(r, 1100));
+          const coords = await geocodePlace(item.name, day.city);
+          if (coords) {
+            pointsToShow.push({
+              name: item.name, city: day.city, day: day.day,
+              type: item.category, lat: coords.lat, lng: coords.lng
+            });
+          }
+        }
+      }
+    }
+  }
+
+  if (pointsToShow.length === 0) {
+    mapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:14px">Nenhum ponto para exibir no mapa</div>';
+    return;
+  }
+
+  // Add markers
+  const bounds = [];
+  for (const pt of pointsToShow) {
+    if (!cityColors[pt.city]) cityColors[pt.city] = colors[colorIdx++ % colors.length];
+    const color = cityColors[pt.city] || '#1C4ED8';
+    const icon = L.divIcon({
+      html: `<div style="background:${color};width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
+      iconSize: [12, 12], className: ''
+    });
+    const typeLabels = { visit:'Visita', hotel:'Hospedagem', restaurant:'Restaurante', transport:'Transporte', tour:'Passeio' };
+    L.marker([pt.lat, pt.lng], { icon })
+      .bindPopup(`<strong>Dia ${pt.day || ''}: ${pt.name}</strong><br>${typeLabels[pt.type] || pt.type || ''} · ${pt.city}`)
+      .addTo(leafletMap);
+    bounds.push([pt.lat, pt.lng]);
+  }
+
+  // Fit map to all points
+  if (bounds.length > 0) leafletMap.fitBounds(bounds, { padding: [20, 20] });
+
+  // Legend
+  const legendEl = document.getElementById('map-legend');
+  if (legendEl) {
+    legendEl.innerHTML = Object.entries(cityColors).map(([city, color]) =>
+      `<div class="map-legend-item"><div class="map-legend-dot" style="background:${color}"></div>${city}</div>`
+    ).join('');
+  }
+}
+
+// ── LINK BUILDERS ──
+function buildGoogleFlightsUrl(fromCode, toCode, dateOut, dateBack, adults, children) {
+  // Google Flights deep link with parameters
+  const base = 'https://www.google.com/travel/flights';
+  const params = new URLSearchParams({
+    q: `Flights from ${fromCode} to ${toCode}`,
+    hl: 'pt-BR',
+    curr: 'BRL',
+  });
+  // Build the tfs parameter for Google Flights
+  // Format: /flights?tfs=... is complex, so we use the simpler query approach
+  const dateOutFmt = dateOut ? dateOut.replace(/-/g,'-') : '';
+  const dateBackFmt = dateBack ? dateBack.replace(/-/g,'-') : '';
+  let url = `https://www.google.com/travel/flights?hl=pt-BR&curr=BRL`;
+  if (fromCode && toCode) url += `&q=voos+de+${fromCode}+para+${toCode}`;
+  return url;
+}
+
+function buildKayakUrl(fromCode, toCode, dateOut, dateBack, adults, children) {
+  // Kayak direct search URL
+  const childStr = children && children.length > 0 ? children.map(a => `e${a}`).join(',') + ',' : '';
+  const pax = `${adults}adults,${childStr}`;
+  const d1 = dateOut || '';
+  const d2 = dateBack || '';
+  if (!fromCode || !toCode || !d1) return `https://www.kayak.com.br/flights/${fromCode}-${toCode}`;
+  if (d2) {
+    return `https://www.kayak.com.br/flights/${fromCode}-${toCode}/${d1}/${d2}/${adults}adults${children&&children.length?','+children.map(a=>`child-age${a}`).join(','):''}`;
+  }
+  return `https://www.kayak.com.br/flights/${fromCode}-${toCode}/${d1}/${adults}adults`;
+}
+
+function buildSkyscannerUrl(fromCode, toCode, dateOut, dateBack, adults, children) {
+  const d1 = dateOut ? dateOut.replace(/-/g,'') : '';
+  const d2 = dateBack ? dateBack.replace(/-/g,'') : '';
+  const pax = adults + (children && children.length ? '-' + children.map(a=>`${a}`).join('-') : '');
+  if (d2) return `https://www.skyscanner.com.br/transporte/passagens-aereas/${fromCode}/${toCode}/${d1}/${d2}/?adults=${adults}`;
+  return `https://www.skyscanner.com.br/transporte/passagens-aereas/${fromCode}/${toCode}/${d1}/?adults=${adults}`;
+}
+
+function buildAirlineUrl(airline, fromCode, toCode, dateOut, adults) {
+  const al = (airline || '').toLowerCase();
+  if (al.includes('latam')) return `https://www.latamairlines.com/br/pt/oferta-voos?origin=${fromCode}&destination=${toCode}&outbound=${dateOut}&adt=${adults}&chd=0&inf=0&trips=2&fareFamily=null&from=BRL`;
+  if (al.includes('azul'))  return `https://www.voeazul.com.br/pt/br`;
+  if (al.includes('gol'))   return `https://www.voegol.com.br/pt/passagens-aereas`;
+  if (al.includes('iberia'))return `https://www.iberia.com/pt/`;
+  if (al.includes('tap'))   return `https://www.tapairportugal.com/pt`;
+  return null;
+}
+
+function buildBookingUrl(hotelName, city, checkIn, checkOut, adults, children) {
+  const params = new URLSearchParams({
+    ss: `${hotelName}, ${city}`,
+    checkin: checkIn || '',
+    checkout: checkOut || '',
+    group_adults: adults || 2,
+    group_children: children ? children.length : 0,
+    no_rooms: 1,
+    selected_currency: 'BRL',
+    lang: 'pt-br',
+  });
+  if (children && children.length) {
+    children.forEach((age, i) => params.append(`age`, age));
+  }
+  return `https://www.booking.com/search.pt-br.html?${params.toString()}`;
+}
+
+function getAdults() {
+  if (!state.travelerType) return 2;
+  return state.travelerType === 'solo' ? 1
+       : state.travelerType === 'couple' ? 2
+       : state.travelerType === 'family' ? 2
+       : parseInt(document.getElementById('group-size')?.value || '4');
+}
+
+function getChildren() {
+  if (state.travelerType !== 'family') return [];
+  return Array.isArray(state.childrenAges) ? state.childrenAges : [];
+}
+
+function getTotalPax() {
+  return getAdults() + getChildren().length;
+}
+
+function priceTimestamp() {
+  return new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+// ── RENDER FLIGHTS ──
+function renderFlights(flights) {
+  if (!Array.isArray(flights)) flights = [];
+  const el = document.getElementById('flights-content');
+  const adults = getAdults();
+  const children = getChildren();
+  const totalPax = adults + children.length;
+  const searchTime = priceTimestamp();
+
+  if (!flights.length) {
+    el.innerHTML = '<div class="card"><div class="card-sub">Nenhuma opção de voo encontrada. Tente ajustar as datas ou destinos.</div></div>';
+    return;
+  }
+
+  // Price disclaimer
+  const disclaimer = `
+  <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#92400E;display:flex;gap:8px;align-items:flex-start">
+    <span style="flex-shrink:0">⚠️</span>
+    <div>
+      <strong>Preços pesquisados às ${searchTime}.</strong> Tarifas aéreas mudam em tempo real e podem variar até você concluir a reserva.
+      Os valores abaixo são reais e foram encontrados agora — use os links de reserva para confirmar o preço atual antes de comprar.
+    </div>
+  </div>`;
+
+  el.innerHTML = disclaimer + (flights||[]).filter(f=>f!=null).map(f => {
+    const stopsCount = (typeof f.stops === 'number') ? f.stops : (f.stops ? parseInt(f.stops) : 1);
+    const stops = stopsCount === 0 ? '<span class="badge badge-direct">✈ Direto</span>'
+      : `<span class="badge badge-cheap">${stopsCount} escala(s)</span>`;
+    const badges = (f.badges || []).map(b => `<span class="badge badge-best">${b}</span>`).join('');
+
+    // Score badge
+    const scoreColors = { A:'#D1FAE5;color:#065F46', B:'#DBEAFE;color:#1E40AF', C:'#FEF3C7;color:#92400E', D:'#FEE2E2;color:#991B1B' };
+    const scoreColor = scoreColors[f.score] || scoreColors['B'];
+    const scoreBadge = f.score
+      ? `<span style="background:${scoreColor.split(';')[0].replace('background:','')};${scoreColor.split(';')[1]};font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px" title="${f.scoreNote || ''}">Score ${f.score}</span>`
+      : '';
+
+    // Origin highlight
+    const originBadge = f.origin
+      ? `<span style="background:#EDE9FE;color:#5B21B6;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px">${f.origin} ← saída recomendada</span>`
+      : '';
+
+    // Build booking links
+    const kayakUrl = buildKayakUrl(f.fromCode, f.toCode, state.dateOut || f.departDate?.split(' ')[0], state.dateBack, adults, children);
+    const gflightsUrl = `https://www.google.com/travel/flights?hl=pt-BR&curr=BRL&q=voos+${f.fromCode}+para+${f.toCode}`;
+    const skyscannerUrl = buildSkyscannerUrl(f.fromCode, f.toCode, state.dateOut, state.dateBack, adults, children);
+    const airlineUrl = buildAirlineUrl(f.airline, f.fromCode, f.toCode, state.dateOut, adults);
+
+    const primaryUrl = f.bookUrl && f.bookUrl.startsWith('http') ? f.bookUrl : airlineUrl;
+    const kayakFinalUrl = f.bookUrlKayak && f.bookUrlKayak.startsWith('http') ? f.bookUrlKayak : kayakUrl;
+    const skyFinalUrl = f.bookUrlSkyscanner && f.bookUrlSkyscanner.startsWith('http') ? f.bookUrlSkyscanner : skyscannerUrl;
+
+    const bookLinks = `
+    <div style="margin-top:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">Verificar preço atual e reservar:</div>
+      <div style="display:flex;flex-wrap:wrap;gap:7px">
+        ${primaryUrl ? `<a href="${primaryUrl}" target="_blank" class="book-link book-link-primary">🎫 ${f.airline || 'Companhia'}</a>` : ''}
+        <a href="${gflightsUrl}" target="_blank" class="book-link">📊 Google Flights</a>
+        <a href="${kayakFinalUrl}" target="_blank" class="book-link">🔍 Kayak</a>
+        <a href="${skyFinalUrl}" target="_blank" class="book-link">✈ Skyscanner</a>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px">⚡ Clique para confirmar disponibilidade e preço atual antes de reservar</div>
+    </div>`;
+
+    return `
+    <div class="flight-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;flex-wrap:wrap;gap:6px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${originBadge}${scoreBadge}</div>
+        <div style="font-size:10px;color:var(--muted)">pesquisado às ${searchTime}</div>
+      </div>
+      <div class="flight-route">
+        <div class="flight-airport">${f.fromCode || f.from}</div>
+        <div class="flight-arrow">──✈──</div>
+        <div class="flight-airport">${f.toCode || f.to}</div>
+      </div>
+      <div class="flight-meta">
+        <div class="flight-meta-item">📅 <strong>${f.departDate || '—'}</strong></div>
+        <div class="flight-meta-item">⏱ <strong>${f.duration || '—'}</strong></div>
+        <div class="flight-meta-item">✈ <strong>${f.airline || '—'}</strong></div>
+        ${f.flightNum ? `<div class="flight-meta-item">🔢 <strong>${f.flightNum}</strong></div>` : ''}
+      </div>
+      <div class="flight-badges" style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">${stops}${badges}</div>
+      <div class="flight-price" style="margin-top:10px">
+        <div class="flight-price-brl">R$ ${(f.totalPriceBRL || 0).toLocaleString('pt-BR')}</div>
+        <div class="flight-price-orig">
+          ${f.priceAdult ? `adulto R$ ${Math.round(f.priceAdult).toLocaleString('pt-BR')}` : ''}
+          ${f.priceChild_2_11 ? ` · criança(2-11) R$ ${Math.round(f.priceChild_2_11).toLocaleString('pt-BR')}` : ''}
+          ${f.priceChild_0_1 === 0 ? ' · bebê grátis' : f.priceChild_0_1 ? ` · bebê R$ ${Math.round(f.priceChild_0_1).toLocaleString('pt-BR')}` : ''}
+          · ${totalPax} pax
+        </div>
+        ${f.totalPriceBreakdown ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;font-style:italic">${f.totalPriceBreakdown}</div>` : ''}
+        <div style="margin-top:5px;display:flex;align-items:center;gap:8px">
+          ${f.source ? `<span style="font-size:10px;color:var(--muted)">Fonte: ${f.source}</span>` : ''}
+          ${(f.verified !== false && f.source) ? '<span style="font-size:10px;font-weight:700;background:#D1FAE5;color:#065F46;padding:1px 7px;border-radius:99px">✓ verificado</span>' : '<span style="font-size:10px;font-weight:700;background:#FEF3C7;color:#92400E;padding:1px 7px;border-radius:99px">est. — confirmar</span>'}
+          <span style="font-size:10px;color:var(--muted)">pesquisado às ${searchTime}</span>
+        </div>
+      </div>
+      ${f.scoreNote ? `<div style="font-size:11px;color:var(--muted);margin-top:5px">💡 ${f.scoreNote}</div>` : ''}
+      ${f.notes ? `<div style="font-size:11px;color:#92400E;margin-top:4px;background:#FFFBEB;padding:5px 8px;border-radius:6px">ℹ️ ${f.notes}</div>` : ''}
+      ${bookLinks}
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER HOTELS ──
+function renderHotels(hotels) {
+  if (!Array.isArray(hotels)) hotels = [];
+  const el = document.getElementById('hotels-content');
+  const adults = getAdults();
+  const children = getChildren();
+  const searchTime = priceTimestamp();
+
+  if (!hotels.length) {
+    el.innerHTML = '<div class="card"><div class="card-sub">Nenhuma hospedagem encontrada. Tente ajustar critérios.</div></div>';
+    return;
+  }
+
+  const disclaimer = `
+  <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#166534;display:flex;gap:8px;align-items:flex-start">
+    <span style="flex-shrink:0">ℹ️</span>
+    <div>
+      <strong>Hospedagens pesquisadas às ${searchTime}.</strong> Disponibilidade e preços verificados agora no Booking.com.
+      Clique em "Reservar no Booking" para confirmar disponibilidade e concluir a reserva com os preços atuais.
+    </div>
+  </div>`;
+
+  el.innerHTML = disclaimer + (hotels||[]).filter(h=>h!=null).map(h => {
+    const stars = '⭐'.repeat(Math.min(h.stars || 3, 5));
+    const amenities = (Array.isArray(h.amenities) ? h.amenities : []).map(a =>
+      `<span class="badge badge-family">${a}</span>`).join('');
+
+    const scoreColors = { A:'#D1FAE5;color:#065F46', B:'#DBEAFE;color:#1E40AF', C:'#FEF3C7;color:#92400E', D:'#FEE2E2;color:#991B1B' };
+    const sc = scoreColors[h.score] || scoreColors['B'];
+    const scoreBadge = h.score
+      ? `<span style="background:${sc.split(';')[0]};${sc.split(';')[1]};font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px" title="${h.scoreNote||''}">Score ${h.score}</span>`
+      : '';
+
+    // Build Booking.com URL
+    const bookingUrl = h.bookUrl && h.bookUrl.startsWith('http')
+      ? h.bookUrl
+      : buildBookingUrl(h.name, h.city, h.checkIn, h.checkOut, adults, children);
+    const bookingUrlAlt = h.bookUrlAirbnb && h.bookUrlAirbnb.startsWith('http')
+      // Airbnb search URL
+    const airbnbUrl = `https://www.airbnb.com.br/s/${encodeURIComponent(h.city)}/homes?checkin=${h.checkIn || ''}&checkout=${h.checkOut || ''}&adults=${adults}&children=${children.length}`;
+
+    const bookUrlAirbnbFinal = h.bookUrlAirbnb && h.bookUrlAirbnb.startsWith('http')
+      ? h.bookUrlAirbnb
+      : airbnbUrl;
+
+    const pricePerNightBRL = h.pricePerNight && h.currency && state.fxRates[h.currency]
+      ? Math.round(h.pricePerNight * state.fxRates[h.currency])
+      : null;
+
+    return `
+    <div class="hotel-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${scoreBadge}</div>
+        <div style="font-size:10px;color:var(--muted)">pesquisado às ${searchTime}</div>
+      </div>
+      <div class="hotel-header">
+        <div>
+          <div class="hotel-name">${h.name}</div>
+          <div class="hotel-stars">${stars} · ${h.neighborhood || h.address || ''}</div>
+        </div>
+        <div class="hotel-rating" title="${h.ratingCount || ''}">${h.rating || '?'}</div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">${h.ratingCount || ''} · ${h.city}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">
+        📅 ${h.checkIn || ''} → ${h.checkOut || ''} · ${h.nights || 0} noites
+      </div>
+      <div class="hotel-amenities" style="margin-top:8px">${amenities}</div>
+      <div class="hotel-price-row">
+        <div class="hotel-price-brl">R$ ${(h.totalPriceBRL || 0).toLocaleString('pt-BR')}</div>
+        <div class="hotel-price-orig">
+          ${pricePerNightBRL ? `R$ ${pricePerNightBRL.toLocaleString('pt-BR')}/noite ·` : ''}
+          ${h.pricePerNight && h.currency !== 'BRL' ? `${h.pricePerNight} ${h.currency}/noite ·` : ''}
+          ${h.nights} noites · total
+        </div>
+      </div>
+      ${h.scoreNote ? `<div style="font-size:11px;color:var(--muted);margin-top:5px">💡 ${h.scoreNote}</div>` : ''}
+      ${h.notes ? `<div style="font-size:11px;color:#166534;margin-top:5px;background:#F0FDF4;padding:5px 8px;border-radius:6px">ℹ️ ${h.notes}</div>` : ''}
+      <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:7px;align-items:center">
+        <span style="font-size:11px;color:var(--muted);font-weight:500">Reservar em:</span>
+        <a href="${bookingUrl}" target="_blank" class="book-link book-link-green">🏨 Booking.com</a>
+        <a href="${bookingUrlAlt}" target="_blank" class="book-link">🏠 Airbnb</a>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── TOUR LINK BUILDERS ──
+function buildCivitatisUrl(activityName, city, date) {
+  const slug = encodeURIComponent((city || '').toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+  const q = encodeURIComponent(activityName || city || '');
+  // Civitatis PT-BR
+  return `https://www.civitatis.com/pt/${slug}/?q=${q}${date ? '&date=' + date : ''}`;
+}
+
+function buildGetYourGuideUrl(activityName, city, date, adults, children) {
+  const q = encodeURIComponent((activityName || city || '').replace(/\s+/g, '+'));
+  const loc = encodeURIComponent(city || '');
+  const childAges = (children || []).map(a => `childrenAges=${a}`).join('&');
+  return `https://www.getyourguide.com.br/s/?q=${q}&location=${loc}&adults=${adults || 2}${childAges ? '&' + childAges : ''}${date ? '&startDate=' + date : ''}`;
+}
+
+function buildViatorUrl(activityName, city) {
+  const q = encodeURIComponent((activityName || city || '').replace(/\s+/g, '%20'));
+  // Viator PT-BR
+  return `https://www.viator.com/pt-BR/tours/${encodeURIComponent(city || '')}/${q}/d${Math.floor(Math.random()*1000)}-`;
+}
+
+function buildViatorSearchUrl(activityName, city) {
+  const q = encodeURIComponent(activityName || city || '');
+  return `https://www.viator.com/pt-BR/search?q=${q}&destination=${encodeURIComponent(city||'')}`;
+}
+
+// ── RENDER ITINERARY ──
+function renderItinerary(days) {
+  if (!Array.isArray(days)) days = (days && typeof days === 'object') ? [days] : [];
+  const el = document.getElementById('itinerary-content');
+  const adults = getAdults();
+  const children = getChildren();
+
+  if (!days.length) {
+    el.innerHTML = '<div class="card"><div class="card-sub">Nenhum roteiro gerado.</div></div>';
+    return;
+  }
+
+  const cityColors = {};
+  const colors = ['#1C4ED8','#065F46','#92400E','#5B21B6','#991B1B','#0F766E'];
+  let colorIdx = 0;
+
+  // Day total summary
+  const tripTotalBRL = days.filter(d=>d!=null).reduce((s, d) => s + (d.dayTotalBRL || 0), 0);
+
+  el.innerHTML = `
+  <div style="background:#F7F5F1;border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <span>📅 ${days.length} dias de roteiro · custos por dia incluem atrações + refeições + transporte local</span>
+    <span style="font-weight:700;color:var(--ink)">Total roteiro: R$ ${tripTotalBRL.toLocaleString('pt-BR')}</span>
+  </div>` +
+
+  days.filter(day=>day!=null).map((day, i) => {
+    const dayCity = day.city || 'Destino';
+    if (!cityColors[dayCity]) cityColors[dayCity] = colors[colorIdx++ % colors.length];
+    const color = cityColors[day.city];
+
+    const items = (day.items || []).filter(item=>item!=null).map(item => {
+      const catLabels = {
+        visit: 'Visita', hotel: 'Hospedagem', food: 'Refeição',
+        flight: 'Voo', transp: 'Transporte', misc: 'Geral', tour: 'Passeio'
+      };
+      const catClass = 'cat-' + (item.category || 'misc');
+
+      // Price breakdown by traveler type
+      let priceHtml = '';
+      if (item.priceBRL || item.pricePerPerson) {
+        const totalBRL = item.priceBRL || 0;
+        const perPax = item.pricePerPerson || 0;
+        const cur = item.currency || 'BRL';
+        const childPriceBRL = item.childPriceBRL || null;
+        const childPrice = item.childPricePerPerson || null;
+        const isFree = item.childFree || false;
+
+        priceHtml = `<div class="tl-price">
+          <span>R$ ${totalBRL.toLocaleString('pt-BR')} total</span>
+          ${perPax ? `<span class="tl-price-orig"> · ${cur !== 'BRL' ? perPax + ' ' + cur : 'R$ ' + Math.round(perPax).toLocaleString('pt-BR')}/adulto</span>` : ''}
+          ${isFree ? '<span class="tl-price-orig" style="color:#065F46"> · 🆓 crianças grátis</span>'
+            : childPriceBRL ? `<span class="tl-price-orig" style="color:#065F46"> · R$ ${childPriceBRL.toLocaleString('pt-BR')}/criança</span>`
+            : childPrice ? `<span class="tl-price-orig" style="color:#065F46"> · ${childPrice} ${cur}/criança</span>` : ''}
+        </div>`;
+      } else if (item.free) {
+        priceHtml = '<div class="tl-price" style="color:#065F46">🆓 Gratuito</div>';
+      }
+
+      // Tour booking links (only for paid visit/tour items)
+      let tourLinks = '';
+      if ((item.category === 'visit' || item.category === 'tour') && (item.priceBRL > 0 || item.pricePerPerson > 0)) {
+        const city = day.city || '';
+        const dateStr = day.isoDate || '';
+
+        // Use provided bookUrl first, then fallback to platform searches
+        const directUrl = item.bookUrl && item.bookUrl.startsWith('http') ? item.bookUrl : null;
+        const civitatisUrl = buildCivitatisUrl(item.name, city, dateStr);
+        const gygUrl = buildGetYourGuideUrl(item.name, city, dateStr, adults, children);
+        const viatorUrl = buildViatorSearchUrl(item.name, city);
+
+        tourLinks = `
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+          <span style="font-size:10px;color:var(--muted);font-weight:600">Comprar antecipado:</span>
+          ${directUrl ? `<a href="${directUrl}" target="_blank" class="book-link book-link-primary" style="font-size:11px;padding:4px 10px">🎫 Reservar direto</a>` : ''}
+          <a href="${civitatisUrl}" target="_blank" class="book-link" style="font-size:11px;padding:4px 10px;border-color:#FF6B35;color:#FF6B35">Civitatis</a>
+          <a href="${gygUrl}" target="_blank" class="book-link" style="font-size:11px;padding:4px 10px;border-color:#FF6B00;color:#FF6B00">GetYourGuide</a>
+          <a href="${viatorUrl}" target="_blank" class="book-link" style="font-size:11px;padding:4px 10px;border-color:#589442;color:#589442">Viator</a>
+        </div>`;
+      }
+
+      return `
+      <div class="tl-item">
+        <div class="tl-time">${item.time || '—'}</div>
+        <div class="tl-content">
+          <span class="tl-cat ${catClass}">${catLabels[item.category] || item.category || 'Geral'}</span>
+          <div class="tl-name">${item.name}
+            ${item.touristLevel === 'local' ? '<span style="font-size:9px;background:#D1FAE5;color:#065F46;padding:1px 6px;border-radius:99px;margin-left:5px;font-weight:600">🟢 local</span>'
+            : item.touristLevel === 'misto' ? '<span style="font-size:9px;background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:99px;margin-left:5px;font-weight:600">🟡 misto</span>'
+            : item.touristLevel === 'muito turístico' ? '<span style="font-size:9px;background:#FEE2E2;color:#991B1B;padding:1px 6px;border-radius:99px;margin-left:5px;font-weight:600">🔴 turístico</span>'
+            : ''}
+          </div>
+          ${item.tripAdvisorRating ? `<div style="font-size:10px;color:#00AA6C;font-weight:600;margin-top:2px">⭐ ${item.tripAdvisorRating} · TripAdvisor</div>` : ''}
+          ${item.description ? `<div class="tl-note" style="margin-top:3px">${item.description}</div>` : ''}
+          ${item.whyThisOne ? `<div class="tl-note" style="color:#1E40AF;margin-top:3px;font-style:italic">💡 ${item.whyThisOne}</div>` : ''}
+          ${item.bestTime ? `<div class="tl-note" style="color:#065F46;margin-top:2px">🕐 Melhor horário: ${item.bestTime}</div>` : ''}
+          ${item.insiderTip ? `<div class="tl-note" style="color:#5B21B6;background:#F5F3FF;padding:4px 7px;border-radius:5px;margin-top:3px">🎯 Dica insider: ${item.insiderTip}</div>` : ''}
+          ${item.notes ? `<div class="tl-note" style="color:#92400E;background:#FFFBEB;padding:4px 7px;border-radius:5px;margin-top:3px">ℹ️ ${item.notes}</div>` : ''}
+          ${item.advanceBookingNote ? `<div class="tl-note" style="color:#991B1B;background:#FEF2F2;padding:4px 7px;border-radius:5px;margin-top:3px">📅 ${item.advanceBookingNote}</div>` : ''}
+          ${priceHtml}
+          ${tourLinks}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `
+    <div class="day-card">
+      <div class="day-card-header" onclick="toggleDay(${i})">
+        <div class="day-num" style="background:${color}">${day.day}</div>
+        <div class="day-title-wrap">
+          <div class="day-title">${day.title || day.city}</div>
+          <div class="day-date">${day.date || ''} · ${day.city}</div>
+        </div>
+        <div class="day-cost-badge">
+          <div class="day-cost-brl">R$ ${(day.dayTotalBRL || 0).toLocaleString('pt-BR')}</div>
+          <div class="day-cost-orig">custo do dia</div>
+        </div>
+        <div class="day-toggle" id="day-tog-${i}">▾</div>
+      </div>
+      <div class="day-body" id="day-body-${i}">
+        <div class="timeline">${items}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER BUDGET ──
+function renderBudget(budget) {
+  if (!budget) { budget = {}; }
+  const el = document.getElementById('budget-content');
+  const rows = [
+    ['✈️ Passagens aéreas', budget.flights],
+    ['🏨 Hospedagem', budget.hotels],
+    ['🍽️ Alimentação', budget.food],
+    ['🎭 Atrações e ingressos', budget.attractions],
+    ['🚌 Transporte local', budget.transport],
+    ['🛍️ Compras, gorjetas e imprevistos', budget.misc],
+  ].filter(([,v]) => v);
+
+  const tableRows = rows.map(([label, v]) => `
+    <tr>
+      <td>${label}<br><span class="budget-orig">${v.note || ''}</span></td>
+      <td>R$ ${(v.brl || 0).toLocaleString('pt-BR')}</td>
+    </tr>`).join('');
+
+  const total = budget.total?.brl || rows.reduce((s,[,v]) => s + (v?.brl||0), 0);
+  const perPersonAdult = budget.perPerson?.adult;
+  const perPersonChild = budget.perPerson?.child;
+  const withinLimit = budget.withinLimit !== false;
+  const overBudget = budget.overBudgetBRL || 0;
+
+  // Budget vs limit header card
+  var limitBRL = parseInt(state.budgetLimit) || 0;
+  var overBy = limitBRL > 0 ? total - limitBRL : 0;
+  var underBy = limitBRL > 0 ? limitBRL - total : 0;
+  var budgetStatusHtml = '';
+  if (limitBRL > 0) {
+    var bg = overBy > 0 ? '#FEF2F2' : '#F0FDF4';
+    var border = overBy > 0 ? '#F87171' : '#4ADE80';
+    var titleColor = overBy > 0 ? '#991B1B' : '#065F46';
+    var textColor = overBy > 0 ? '#7F1D1D' : '#14532D';
+    var amountColor = overBy > 0 ? '#EF4444' : '#22C55E';
+    var statusTitle = overBy > 0 ? '⚠️ Orçamento excedido' : '✅ Dentro do orçamento';
+    var planText = overBy > 0
+      ? 'Plano custa R$ ' + total.toLocaleString('pt-BR') + ' · Limite R$ ' + limitBRL.toLocaleString('pt-BR') + ' · Excede em R$ ' + overBy.toLocaleString('pt-BR')
+      : 'Plano custa R$ ' + total.toLocaleString('pt-BR') + ' · Limite R$ ' + limitBRL.toLocaleString('pt-BR') + ' · Sobra R$ ' + underBy.toLocaleString('pt-BR');
+    var amountText = overBy > 0 ? '-R$ ' + overBy.toLocaleString('pt-BR') : '+R$ ' + underBy.toLocaleString('pt-BR');
+    budgetStatusHtml = '<div style="background:' + bg + ';border:2px solid ' + border + ';border-radius:12px;padding:1rem 1.25rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">'
+      + '<div>'
+      + '<div style="font-size:12px;font-weight:700;text-transform:uppercase;color:' + titleColor + ';margin-bottom:3px">' + statusTitle + '</div>'
+      + '<div style="font-size:13px;color:' + textColor + '">' + planText + '</div>'
+      + '</div>'
+      + '<div style="font-size:2rem;font-weight:700;color:' + amountColor + '">' + amountText + '</div>'
+      + '</div>';
+  }
+
+  el.innerHTML = budgetStatusHtml + `
+  <div class="card">
+    <table class="budget-table">
+      ${tableRows}
+      <tr class="budget-total-row">
+        <td>💰 TOTAL ESTIMADO<br>
+          <span class="budget-orig">${perPersonAdult ? '~R$ ' + perPersonAdult.toLocaleString('pt-BR') + '/adulto' : ''}</span>
+          <span class="budget-orig">${perPersonChild ? ' · ~R$ ' + perPersonChild.toLocaleString('pt-BR') + '/criança' : ''}</span>
+        </td>
+        <td>R$ ${total.toLocaleString('pt-BR')}<br><span class="budget-orig">todos os custos inclusos</span></td>
+      </tr>
+    </table>
+  </div>
+  ${state.result?.tips?.length ? `
+  <div class="card" style="margin-top:12px">
+    <div class="card-title">💡 Dicas da viagem</div>
+    <ul style="padding-left:1.2rem;font-size:13px;color:var(--ink2);line-height:2">
+      ${(state.result.tips || []).map(t => `<li>${t}</li>`).join('')}
+    </ul>
+  </div>` : ''}
+  ${state.result?.warnings?.length ? `
+  <div class="card" style="margin-top:12px;border-color:#FCA5A5;background:#FFF5F5">
+    <div class="card-title" style="color:var(--red)">⚠️ Atenção</div>
+    <ul style="padding-left:1.2rem;font-size:13px;color:var(--red);line-height:2">
+      ${(state.result.warnings || []).map(w => `<li>${w}</li>`).join('')}
+    </ul>
+  </div>` : ''}`;
+}
+
+// ── RENDER CHECKLIST ──
+function renderChecklist(checklist) {
+  const el = document.getElementById('checklist-content');
+  if (!el) return;
+
+  if (!checklist || Object.keys(checklist).length === 0) {
+    el.innerHTML = '<div class="card"><div class="card-sub">Faça uma pesquisa para ver o checklist personalizado da viagem.</div></div>';
+    return;
+  }
+
+  // Load saved checkbox states
+  const savedStates = JSON.parse(localStorage.getItem('tm_checklist') || '{}');
+
+  const sections = [
+    { key: 'beforeBuying', icon: '💳', title: 'Reservar / Comprar agora' },
+    { key: 'documents',    icon: '📋', title: 'Documentos necessários' },
+    { key: 'beforeTrip',   icon: '🎒', title: 'Preparar antes de viajar' },
+    { key: 'packing',      icon: '🧳', title: 'O que levar na mala' },
+    { key: 'onArrival',    icon: '✈️',  title: 'Ao chegar no destino' },
+  ];
+
+  const urgencyLabel = { now: 'AGORA', soon: 'Em breve', later: 'Pode esperar' };
+  const urgencyClass = { now: 'check-now', soon: 'check-soon', later: 'check-later' };
+
+  el.innerHTML = `
+  <div class="export-bar" style="margin-bottom:1rem">
+    <button onclick="printChecklist()" class="export-btn">🖨️ Imprimir checklist</button>
+    <button onclick="resetChecklist()" class="export-btn">↺ Resetar marcações</button>
+  </div>` +
+  sections.map(sec => {
+    const items = checklist[sec.key] || [];
+    if (!items.length) return '';
+    return `
+    <div class="checklist-section card">
+      <div class="checklist-section-title">${sec.icon} ${sec.title}</div>
+      ${items.map((item, idx) => {
+        const id = `chk-${sec.key}-${idx}`;
+        const saved = savedStates[id] || false;
+        return `
+        <div class="check-item">
+          <input type="checkbox" id="${id}" ${saved ? 'checked' : ''}
+            onchange="saveCheckbox('${id}', this.checked)">
+          <label for="${id}" class="${saved ? 'done' : ''}">
+            ${item.item}
+            ${item.note ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${item.note}</div>` : ''}
+            ${item.url ? `<a href="${item.url}" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none;margin-top:2px;display:inline-block">→ Link</a>` : ''}
+          </label>
+          ${item.urgency ? `<span class="check-urgency ${urgencyClass[item.urgency] || 'check-later'}">${urgencyLabel[item.urgency] || item.urgency}</span>` : ''}
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
+function saveCheckbox(id, checked) {
+  const states = JSON.parse(localStorage.getItem('tm_checklist') || '{}');
+  states[id] = checked;
+  localStorage.setItem('tm_checklist', JSON.stringify(states));
+  const label = document.querySelector(`label[for="${id}"]`);
+  if (label) label.classList.toggle('done', checked);
+}
+
+function resetChecklist() {
+  localStorage.removeItem('tm_checklist');
+  document.querySelectorAll('.check-item input[type=checkbox]').forEach(cb => {
+    cb.checked = false;
+    const label = document.querySelector(`label[for="${cb.id}"]`);
+    if (label) label.classList.remove('done');
+  });
+}
+
+function printChecklist() {
+  window.print();
+}
+
+// ── RENDER WEATHER ──
+async function renderWeather(destinations, dateOut) {
+  const el = document.getElementById('weather-content');
+  if (!el) return;
+
+  el.innerHTML = '<div class="card"><div class="card-sub">🌤 Carregando dados de clima via Open-Meteo (gratuito, sem anúncios)...</div></div>';
+
+  try {
+    // Get coordinates for first destination via Nominatim
+    const dest = (destinations || [])[0] || '';
+    const geoRes = await fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(dest)}&format=json&limit=1`,
+      { headers: { 'Accept-Language': 'pt-BR' } }
+    );
+    const geoData = await geoRes.json();
+    if (!geoData || !geoData[0]) throw new Error('Localização não encontrada');
+
+    const lat = geoData[0].lat;
+    const lon = geoData[0].lon;
+    const city = geoData[0].display_name.split(',')[0];
+
+    // Get weather from Open-Meteo (free, no key)
+    const startDate = dateOut || new Date().toISOString().split('T')[0];
+    const endDate = new Date(new Date(startDate).getTime() + 14 * 86400000).toISOString().split('T')[0];
+
+    const weatherRes = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,weathercode&timezone=auto&start_date=${startDate}&end_date=${endDate}`
+    );
+    const weather = await weatherRes.json();
+
+    const codes = {
+      0:'☀️ Céu limpo', 1:'🌤 Poucas nuvens', 2:'⛅ Parcialmente nublado',
+      3:'☁️ Nublado', 45:'🌫 Nevoeiro', 51:'🌦 Garoa leve', 61:'🌧 Chuva leve',
+      63:'🌧 Chuva moderada', 71:'❄️ Neve leve', 80:'🌦 Pancadas', 95:'⛈ Tempestade'
+    };
+
+    const dayNames = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+    el.innerHTML = `
+    <div class="card" style="margin-bottom:1rem">
+      <div class="card-title">🌤 Previsão de clima — ${city}</div>
+      <div class="card-sub">Dados: Open-Meteo · Gratuito · Atualizado agora · Previsão para os próximos 14 dias</div>
+    </div>
+    <div class="weather-grid">
+      ${(weather.daily?.time || []).map((date, i) => {
+        const d = new Date(date + 'T12:00:00');
+        const code = weather.daily.weathercode?.[i] || 0;
+        const tmax = Math.round(weather.daily.temperature_2m_max?.[i] || 0);
+        const tmin = Math.round(weather.daily.temperature_2m_min?.[i] || 0);
+        const rain = weather.daily.precipitation_probability_max?.[i] || 0;
+        const desc = codes[code] || '🌤 Variável';
+        return `
+        <div class="weather-day">
+          <div class="weather-date">${dayNames[d.getDay()]} ${d.getDate()}/${d.getMonth()+1}</div>
+          <div class="weather-icon">${desc.split(' ')[0]}</div>
+          <div class="weather-temp">${tmax}° / ${tmin}°</div>
+          <div class="weather-desc">${desc.split(' ').slice(1).join(' ')}</div>
+          ${rain > 20 ? `<div class="weather-rain">💧 ${rain}% chuva</div>` : ''}
+        </div>`;
+      }).join('')}
+    </div>`;
+
+  } catch(e) {
+    el.innerHTML = `<div class="card"><div class="card-sub">⚠️ Não foi possível carregar o clima: ${e.message}. Tente a aba "Roteiro" para informações sobre clima típico do destino.</div></div>`;
+  }
+}
+
+// ── RENDER ALT DATES ──
+function renderAltDates(altDates) {
+  if (!Array.isArray(altDates)) altDates = [];
+  const el = document.getElementById('altdates-content');
+  if (!altDates.length) {
+    el.innerHTML = '<div class="card"><div class="card-sub">Nenhuma data alternativa significativamente mais barata encontrada. As datas informadas já estão com bom custo-benefício.</div></div>';
+    return;
+  }
+  const seasonColor = { baixa:'#D1FAE5;color:#065F46', média:'#FEF3C7;color:#92400E', alta:'#FEE2E2;color:#991B1B' };
+  const modeNote = state.dateMode === 'best'
+    ? '<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#1E40AF"><strong>Modo Melhor Preço:</strong> períodos ordenados do mais barato ao mais caro dentro da janela pesquisada. Clique em qualquer período para usar essas datas.</div>'
+    : '<div style="background:#F7F5F1;border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--muted)">Datas alternativas próximas às informadas que encontramos com preços melhores.</div>';
+  el.innerHTML = modeNote + altDates.map((a, i) => {
+    const sc = seasonColor[a.season] || seasonColor['média'];
+    const scBg = sc.split(';')[0];
+    const scColor = sc.split(';')[1];
+    const isFirst = i === 0;
+    return `
+    <div class="alt-date-card ${isFirst ? 'alt-date-best' : ''}" onclick="applyAltDate('${a.dateOut}','${a.dateBack}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+        <div>
+          ${isFirst ? '<span style="font-size:10px;font-weight:700;background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:99px;display:inline-block;margin-bottom:4px">🏆 Melhor opção</span><br>' : ''}
+          <div class="alt-date-title">${a.period}</div>
+        </div>
+        <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;${scBg};${scColor}">${a.season || 'média'} temporada</span>
+      </div>
+      <div class="alt-date-period">📅 ${a.dateOut || '—'} → ${a.dateBack || '—'}</div>
+      ${a.flightPrice ? `<div style="font-size:12px;color:var(--muted);margin-top:3px">✈ Voo: <strong>${a.flightPrice}</strong></div>` : ''}
+      ${a.hotelPrice ? `<div style="font-size:12px;color:var(--muted);margin-top:1px">🏨 Hotel: <strong>${a.hotelPrice}</strong></div>` : ''}
+      <div class="alt-date-saving">💚 Economia vs. datas mais caras: R$ ${(a.savingBRL || 0).toLocaleString('pt-BR')}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:5px">${a.reason || ''}</div>
+      <div style="margin-top:10px">
+        <button onclick="event.stopPropagation();applyAltDate('${a.dateOut}','${a.dateBack}')"
+          style="font-size:12px;font-weight:600;padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:7px;cursor:pointer;font-family:inherit">
+          Usar estas datas e pesquisar →
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── FEATURE 8: SEARCH HISTORY ──
+const HISTORY_KEY = 'tm_search_history';
+const MAX_HISTORY = 10;
+
+function copyDebugInfo() {
+  const content = document.getElementById('debug-content');
+  if (!content) return;
+  try {
+    navigator.clipboard.writeText(content.textContent).then(() => {
+      const btn = document.querySelector('#debug-panel button');
+      if (btn) { btn.textContent = '✅ Copiado!'; setTimeout(() => btn.textContent = '📋 Copiar tudo', 2000); }
+    });
+  } catch(e) {
+    // Fallback for older browsers
+    const ta = document.createElement('textarea');
+    ta.value = content.textContent;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.querySelector('#debug-panel button');
+    if (btn) { btn.textContent = '✅ Copiado!'; setTimeout(() => btn.textContent = '📋 Copiar tudo', 2000); }
+  }
+}
+
+function saveToHistory(data, searchParams) {
+  const history = getHistory();
+  const entry = {
+    id: Date.now(),
+    timestamp: new Date().toISOString(),
+    title: data.tripTitle || searchParams.destinations.join(' + '),
+    destinations: searchParams.destinations,
+    period: data.period || '',
+    totalBRL: data.budget?.total?.brl || data.totalBRL || 0,
+    travelers: data.travelers || '',
+    data: data, // full result
+    params: {
+      destinations: searchParams.destinations,
+      dateOut: searchParams.dateOut,
+      dateBack: searchParams.dateBack,
+      travelerType: searchParams.travelerType,
+      childrenAges: searchParams.childrenAges,
+      hotelStyle: searchParams.hotelStyle,
+    }
+  };
+  history.unshift(entry);
+  if (history.length > MAX_HISTORY) history.pop();
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  updateHistoryUI();
+}
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function updateHistoryUI() {
+  const history = getHistory();
+  const badge = document.getElementById('history-count-badge');
+  if (badge) {
+    badge.textContent = history.length;
+    badge.style.display = history.length > 0 ? 'inline-block' : 'none';
+  }
+  renderHistorySidebar(history);
+}
+
+function renderHistorySidebar(history) {
+  const el = document.getElementById('history-sidebar-list');
+  if (!el) return;
+  if (!history.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0">Nenhuma pesquisa salva ainda.</div>';
+    return;
+  }
+  el.innerHTML = history.map(h => `
+  <div class="history-card" onclick="loadFromHistory('${h.id}')">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div class="history-card-title">${h.title}</div>
+      <button onclick="event.stopPropagation();deleteFromHistory(${h.id})"
+        style="background:none;border:none;cursor:pointer;color:#ccc;font-size:14px;padding:0 2px">✕</button>
+    </div>
+    <div class="history-card-meta">${h.period} · ${h.travelers}</div>
+    <div class="history-card-total">R$ ${(h.totalBRL||0).toLocaleString('pt-BR')}</div>
+    <div style="font-size:10px;color:var(--muted);margin-top:3px">${new Date(h.timestamp).toLocaleDateString('pt-BR', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+  </div>`).join('');
+}
+
+function loadFromHistory(id) {
+  const history = getHistory();
+  const entry = history.find(h => h.id == id);
+  if (!entry) return;
+  // Restore params
+  if (entry.params) {
+    state.destinations = entry.params.destinations || [];
+    state.travelerType = entry.params.travelerType || 'family';
+    state.childrenAges = entry.params.childrenAges || [];
+    state.dateOut = entry.params.dateOut || '';
+    state.dateBack = entry.params.dateBack || '';
+    state.hotelStyle = entry.params.hotelStyle || 'superior';
+    renderDestTags();
+    renderAgeTags();
+    selectTraveler(state.travelerType);
+    selectHotel(state.hotelStyle);
+    if (state.dateOut) document.getElementById('date-out').value = state.dateOut;
+    if (state.dateBack) document.getElementById('date-back').value = state.dateBack;
+  }
+  // Render saved result
+  renderResults(entry.data);
+  document.getElementById('results-area').scrollIntoView({ behavior: 'smooth' });
+}
+
+function deleteFromHistory(id) {
+  const history = getHistory().filter(h => h.id != id);
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  updateHistoryUI();
+}
+
+function clearHistory() {
+  localStorage.removeItem(HISTORY_KEY);
+  updateHistoryUI();
+}
+
+function toggleHistory() {
+  const panel = document.getElementById('history-sidebar');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) updateHistoryUI();
+}
+
+// ── FEATURE 4: SCENARIO COMPARATOR ──
+function toggleComparator() {
+  const panel = document.getElementById('comparator-panel');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) renderComparator();
+}
+
+function renderComparator() {
+  const el = document.getElementById('comparator-content');
+  if (!el) return;
+  const history = getHistory();
+
+  if (history.length < 2) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);padding:8px 0">Faça pelo menos 2 pesquisas para comparar cenários.</div>';
+    return;
+  }
+
+  // Compare last 4 searches
+  const toCompare = history.slice(0, 4);
+  const best = toCompare.reduce((a, b) => (a.totalBRL < b.totalBRL ? a : b));
+
+  const categories = [
+    ['✈️ Voos', 'flights'],
+    ['🏨 Hotel', 'hotels'],
+    ['🍽️ Alimentação', 'food'],
+    ['🎭 Atrações', 'attractions'],
+    ['💰 TOTAL', 'total'],
+  ];
+
+  el.innerHTML = `
+  <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Comparando ${toCompare.length} pesquisas recentes. 🏆 = mais econômico.</div>
+  <div class="compare-grid">
+    ${toCompare.map(h => {
+      const isBest = h.id === best.id;
+      const b = h.data?.budget || {};
+      return `
+      <div class="compare-card ${isBest ? 'best' : ''}">
+        ${isBest ? '<div style="font-size:10px;font-weight:700;color:#065F46;margin-bottom:6px">🏆 Mais econômico</div>' : ''}
+        <div class="compare-title">${h.title}</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:8px">${h.period}</div>
+        ${categories.map(([label, key]) => `
+        <div class="compare-row">
+          <span>${label}</span>
+          <span style="font-weight:600">R$ ${((key === 'total' ? b.total?.brl : b[key]?.brl) || 0).toLocaleString('pt-BR')}</span>
+        </div>`).join('')}
+        <button onclick="loadFromHistory(${h.id})" style="margin-top:10px;width:100%;padding:6px;background:none;border:1px solid var(--accent);color:var(--accent);border-radius:6px;font-family:inherit;font-size:12px;cursor:pointer">Ver detalhes</button>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ── FEATURE 5: EXPORT PDF ──
+function exportPDF() {
+  const result = state.result;
+  if (!result) { alert('Faça uma pesquisa primeiro.'); return; }
+
+  const printContent = `
+  <html><head><title>${result.tripTitle || 'TripMind'}</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; padding: 20px; }
+    h1 { font-size: 20px; color: #1C4ED8; margin-bottom: 5px; }
+    h2 { font-size: 14px; color: #374151; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-top: 20px; }
+    .total { font-size: 22px; font-weight: bold; color: #1C4ED8; }
+    .meta { color: #6B7280; font-size: 11px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    td, th { padding: 6px 8px; border: 1px solid #e5e7eb; font-size: 11px; }
+    th { background: #f9fafb; font-weight: 600; }
+    .day-header { background: #EFF6FF; font-weight: bold; }
+    @media print { .no-print { display: none; } }
+  </style></head><body>
+  <h1>${result.tripTitle || 'Roteiro de Viagem'}</h1>
+  <div class="meta">${result.period || ''} · ${result.travelers || ''}</div>
+  <div class="total" style="margin:10px 0">Total: R$ ${(result.budget?.total?.brl || result.totalBRL || 0).toLocaleString('pt-BR')}</div>
+
+  <h2>✈️ Voos</h2>
+  <table><tr><th>Trecho</th><th>Cia</th><th>Data</th><th>Duração</th><th>Total R$</th></tr>
+  ${(result.flights||[]).map(f => `<tr><td>${f.fromCode||f.from}→${f.toCode||f.to}</td><td>${f.airline||''}</td><td>${f.departDate||''}</td><td>${f.duration||''}</td><td>R$ ${(f.totalPriceBRL||0).toLocaleString('pt-BR')}</td></tr>`).join('')}
+  </table>
+
+  <h2>🏨 Hospedagem</h2>
+  <table><tr><th>Hotel</th><th>Cidade</th><th>Noites</th><th>Nota</th><th>Total R$</th></tr>
+  ${(result.hotels||[]).map(h => `<tr><td>${h.name||''}</td><td>${h.city||''}</td><td>${h.nights||0}</td><td>${h.rating||''}</td><td>R$ ${(h.totalPriceBRL||0).toLocaleString('pt-BR')}</td></tr>`).join('')}
+  </table>
+
+  <h2>📅 Roteiro dia a dia</h2>
+  ${(result.itinerary||[]).map(day => `
+  <div class="day-header" style="margin-top:10px;padding:5px">Dia ${day.day} — ${day.date||''} · ${day.city||''} · R$ ${(day.dayTotalBRL||0).toLocaleString('pt-BR')}</div>
+  <table><tr><th>Horário</th><th>Atividade</th><th>Custo R$</th></tr>
+  ${(day.items||[]).map(i => `<tr><td>${i.time||'—'}</td><td>${i.name} ${i.notes?'<br><small>'+i.notes+'</small>':''}</td><td>${i.priceBRL?'R$ '+i.priceBRL.toLocaleString('pt-BR'):''}</td></tr>`).join('')}
+  </table>`).join('')}
+
+  <h2>💰 Orçamento total</h2>
+  <table>
+  ${Object.entries(result.budget||{}).filter(([k])=>!['total','perPerson','withinLimit','limitBRL','overBudgetBRL','budgetOptimization'].includes(k)).map(([k,v])=>`<tr><td>${k}</td><td>R$ ${(v?.brl||0).toLocaleString('pt-BR')}</td><td>${v?.note||''}</td></tr>`).join('')}
+  <tr style="font-weight:bold"><td>TOTAL</td><td>R$ ${(result.budget?.total?.brl||0).toLocaleString('pt-BR')}</td><td></td></tr>
+  </table>
+  <div style="margin-top:20px;font-size:10px;color:#9CA3AF">Gerado por TripMind · ${new Date().toLocaleDateString('pt-BR')} · Preços verificados no momento da pesquisa e sujeitos a alteração.</div>
+  </body></html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(printContent);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 500);
+}
+
+function applyAltDate(dOut, dBack) {
+  if (dOut) document.getElementById('date-out').value = dOut;
+  if (dBack) document.getElementById('date-back').value = dBack;
+  document.querySelector('.panel-form').scrollIntoView({ behavior: 'smooth' });
+  setTimeout(() => {
+    if (confirm(`Aplicar as datas ${dOut} → ${dBack} e pesquisar novamente?`)) startSearch();
+  }, 500);
+}
+</script>
+
+<script>
+// Initialize history on load
+document.addEventListener('DOMContentLoaded', function() {
+  updateHistoryUI();
+});
+</script>
+
+<!-- ══ PASSWORD GATE ══ -->
+<div id="pwd-gate" style="
+  position:fixed;inset:0;z-index:9999;
+  background:var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  flex-direction:column;gap:1.5rem;
+  padding:2rem;
+">
+  <div style="text-align:center">
+    <div style="font-family:'DM Serif Display',Georgia,serif;font-size:2rem;color:#fff;letter-spacing:-0.01em">
+      Trip<em style="color:#60A5FA;font-style:italic">Mind</em>
+    </div>
+    <div style="font-size:13px;color:#666;margin-top:4px;letter-spacing:0.06em;text-transform:uppercase">
+      Planejador inteligente de viagens
+    </div>
+  </div>
+
+  <div style="
+    background:#111;border:1px solid #222;border-radius:14px;
+    padding:2rem 2.5rem;width:100%;max-width:380px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  ">
+    <div style="font-size:14px;color:#aaa;margin-bottom:1rem;text-align:center">
+      🔒 Acesso restrito
+    </div>
+    <input
+      type="password"
+      id="pwd-input"
+      placeholder="Digite a senha..."
+      onkeydown="if(event.key==='Enter')checkPwd()"
+      style="
+        width:100%;padding:12px 14px;
+        background:#1a1a1a;border:1.5px solid #333;
+        border-radius:8px;color:#fff;font-size:15px;
+        font-family:inherit;outline:none;
+        transition:border-color .15s;
+      "
+      onfocus="this.style.borderColor='#60A5FA'"
+      onblur="this.style.borderColor='#333'"
+    >
+    <div id="pwd-error"  style="
+      color:#f87171;font-size:12px;margin-top:8px;
+      text-align:center;display:none;
+    ">Senha incorreta. Tente novamente.</div>
+    <button onclick="checkPwd()" style="
+      width:100%;margin-top:14px;padding:13px;
+      background:#1C4ED8;color:#fff;border:none;
+      border-radius:8px;font-size:15px;font-weight:600;
+      cursor:pointer;font-family:inherit;
+      transition:background .15s;
+    "
+    onmouseover="this.style.background='#1e40af'"
+    onmouseout="this.style.background='#1C4ED8'"
+    >Entrar →</button>
+  </div>
+
+  <div style="font-size:11px;color:#444">
+    ✈ Saídas de JPA · REC — sempre o mais barato
+  </div>
+</div>
+
+<script>
+// ── PASSWORD GATE ──
+(function() {
+  const HASH = 'f959a05fd9f7e77b34406722e0fe2dc97648963fab096c8b699c2237d78b2309'; // Tripfamilia
+  function sha256(str) {
+    // Simple hash check via SubtleCrypto
+    const buf = new TextEncoder().encode(str);
+    return crypto.subtle.digest('SHA-256', buf).then(b => {
+      return Array.from(new Uint8Array(b)).map(x => x.toString(16).padStart(2,'0')).join('');
+    });
+  }
+  // Check if already authenticated this session
+  if (sessionStorage.getItem('tm_auth') === '1') {
+    document.getElementById('pwd-gate').style.display = 'none';
+  }
+  window.checkPwd = async function() {
+    const val = document.getElementById('pwd-input').value;
+    const hash = await sha256(val);
+    if (hash === HASH) {
+      sessionStorage.setItem('tm_auth', '1');
+      const gate = document.getElementById('pwd-gate');
+      gate.style.transition = 'opacity .3s';
+      gate.style.opacity = '0';
+      setTimeout(() => gate.style.display = 'none', 300);
+    } else {
+      const errEl = document.getElementById('pwd-error');
+      errEl.style.display = 'block';
+      document.getElementById('pwd-input').style.borderColor = '#f87171';
+      setTimeout(() => {
+        errEl.style.display = 'none';
+        document.getElementById('pwd-input').style.borderColor = '#333';
+      }, 2500);
+    }
+  };
+})();
+</script>
+
+</body>
+</html>
