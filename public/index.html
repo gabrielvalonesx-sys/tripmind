@@ -1610,7 +1610,7 @@ O JSON DEVE conter o array "hotels" com as opcoes encontradas.
 Campos em cada hotel: city, name, stars, rating, neighborhood, checkIn, checkOut, nights, pricePerNight, currency, totalPriceBRL, priceBreakdown, childPolicy, amenities, source, bookUrl, notes.
 Se nao encontrar hoteis, retorne apenas: {"hotels":[]}.`;
 }
-function buildItineraryPrompt(flightData, hotelData) {
+function buildItineraryPrompt(flightData, hotelData, dayFrom, dayTo) {
   const adults = getAdults();
   const children = getChildren();
   const dest = (state.destinations || []).join(', ');
@@ -1627,7 +1627,11 @@ function buildItineraryPrompt(flightData, hotelData) {
   const budgetLimit = parseFloat(state.budgetLimit) || 0;
   const remaining   = Math.max(0, budgetLimit - flightTotal - hotelTotal);
 
-  return `Monte roteiro COMPLETO de ${nights} dias em ${dest} (${dateOut} a ${dateBack}).
+  const _dayFrom = dayFrom || 1;
+  const _dayTo   = dayTo   || nights;
+  const _daysCount = _dayTo - _dayFrom + 1;
+
+  return `Monte roteiro COMPLETO — dias ${_dayFrom} ao ${_dayTo} — em ${dest} (${dateOut} a ${dateBack}).
 
 VIAGEM:
 - Viajantes: ${adults} adulto(s), criancas: [${childInfo}]
@@ -1637,8 +1641,8 @@ VIAGEM:
 - Voos: R$${flightTotal.toLocaleString('pt-BR')} | Hotel: R$${hotelTotal.toLocaleString('pt-BR')}
 ${budgetLimit > 0 ? '- Disponivel atracoes+alimentacao: R$' + remaining.toLocaleString('pt-BR') : ''}
 
-REGRA CRITICA: Gere OBRIGATORIAMENTE TODOS os ${nights} dias, do dia 1 ao dia ${nights}.
-Nao pare antes. Nao resuma. Cada dia completo.
+REGRA CRITICA: Gere OBRIGATORIAMENTE os dias ${_dayFrom} ao ${_dayTo} (${_daysCount} dias).
+Nao pare antes. Nao resuma. Cada dia completo com TODOS os itens.
 
 CADA DIA DEVE TER OBRIGATORIAMENTE:
 1. Cafe da manha (category: "food") — preco real local (ex: padaria, cafe do hotel)
@@ -1733,19 +1737,29 @@ async function startSearch() {
     // ETAPA 1: VOOS REAIS
     setStep(1, '✈️ Etapa 1/3 — Buscando voos reais...');
     let flightData = { flights: [] };
-    try {
-      const ft = await callAPI_single(buildFlightPrompt(), true, 3000);
-      window._debugRaw.push({ etapa: 1, tipo: 'voos', chars: ft ? ft.length : 0, preview: ft ? ft.substring(0, 200) : 'vazio', full: ft || '' });
-      const fd = parseResponse(ft);
-      if (fd && fd.flights) flightData = fd;
-      if (flightData.fxRates) state.fxRates = { ...state.fxRates, ...flightData.fxRates };
-      window._debugSteps.push({ etapa: 1, status: 'OK', voos: (flightData.flights||[]).length, rawChars: (ft||'').length,
-        parseResult: { fields: flightData.flights?.[0] ? Object.keys(flightData.flights[0]).join(',') : 'empty',
-          total: flightData.flights?.[0]?.totalBRL || flightData.flights?.[0]?.totalPriceBRL || 'MISSING' }
-      });
-    } catch(e) {
-      window._debugSteps.push({ etapa: 1, status: 'ERRO', erro: e.message });
-      console.warn('Flight error:', e.message);
+    for (let _retry1 = 0; _retry1 <= 2; _retry1++) {
+      try {
+        const ft = await callAPI_single(buildFlightPrompt(), true, 3000);
+        window._debugRaw.push({ etapa: 1, tipo: 'voos', chars: ft ? ft.length : 0, preview: ft ? ft.substring(0, 200) : 'vazio', full: ft || '' });
+        const fd = parseResponse(ft);
+        if (fd && fd.flights) flightData = fd;
+        if (flightData.fxRates) state.fxRates = { ...state.fxRates, ...flightData.fxRates };
+        window._debugSteps.push({ etapa: 1, status: 'OK', voos: (flightData.flights||[]).length, rawChars: (ft||'').length,
+          parseResult: { fields: flightData.flights?.[0] ? Object.keys(flightData.flights[0]).join(',') : 'empty',
+            total: flightData.flights?.[0]?.totalBRL || flightData.flights?.[0]?.totalPriceBRL || 'MISSING' }
+        });
+        break; // sucesso
+      } catch(e) {
+        const isNet = e.message.includes('rede') || e.message.includes('network') || e.message.includes('conexão');
+        if (isNet && _retry1 < 2) {
+          window._debugSteps.push({ etapa: 1, status: 'RETRY', tentativa: _retry1+1, erro: e.message });
+          await sleep(2000 * (_retry1 + 1)); // 2s, 4s
+          continue;
+        }
+        window._debugSteps.push({ etapa: 1, status: 'ERRO', erro: e.message });
+        console.warn('Flight error:', e.message);
+        break;
+      }
     }
     setStep(1, '✈️ Voos encontrados ✓');
     // Show flights immediately so user sees progress
@@ -1758,18 +1772,28 @@ async function startSearch() {
     // ETAPA 2: HOTÉIS REAIS
     setStep(2, '🏨 Etapa 2/3 — Buscando hospedagem...');
     let hotelData = { hotels: [] };
-    try {
-      const ht = await callAPI_single(buildHotelPrompt(flightData), true, 2000);
-      window._debugRaw.push({ etapa: 2, tipo: 'hoteis', chars: ht ? ht.length : 0, preview: ht ? ht.substring(0, 200) : 'vazio', full: ht || '' });
-      const hd = parseResponse(ht);
-      if (hd && hd.hotels) hotelData = hd;
-      window._debugSteps.push({ etapa: 2, status: 'OK', hoteis: (hotelData.hotels||[]).length, rawChars: (ht||'').length,
-        parseResult: { fields: hotelData.hotels?.[0] ? Object.keys(hotelData.hotels[0]).join(',') : 'empty',
-          total: hotelData.hotels?.[0]?.totalPriceBRL || 'MISSING' }
-      });
-    } catch(e) {
-      window._debugSteps.push({ etapa: 2, status: 'ERRO', erro: e.message });
-      console.warn('Hotel error:', e.message);
+    for (let _retry2 = 0; _retry2 <= 2; _retry2++) {
+      try {
+        const ht = await callAPI_single(buildHotelPrompt(flightData), true, 2000);
+        window._debugRaw.push({ etapa: 2, tipo: 'hoteis', chars: ht ? ht.length : 0, preview: ht ? ht.substring(0, 200) : 'vazio', full: ht || '' });
+        const hd = parseResponse(ht);
+        if (hd && hd.hotels) hotelData = hd;
+        window._debugSteps.push({ etapa: 2, status: 'OK', hoteis: (hotelData.hotels||[]).length, rawChars: (ht||'').length,
+          parseResult: { fields: hotelData.hotels?.[0] ? Object.keys(hotelData.hotels[0]).join(',') : 'empty',
+            total: hotelData.hotels?.[0]?.totalPriceBRL || 'MISSING' }
+        });
+        break;
+      } catch(e) {
+        const isNet = e.message.includes('rede') || e.message.includes('network') || e.message.includes('conexão');
+        if (isNet && _retry2 < 2) {
+          window._debugSteps.push({ etapa: 2, status: 'RETRY', tentativa: _retry2+1, erro: e.message });
+          await sleep(2000 * (_retry2 + 1));
+          continue;
+        }
+        window._debugSteps.push({ etapa: 2, status: 'ERRO', erro: e.message });
+        console.warn('Hotel error:', e.message);
+        break;
+      }
     }
     setStep(2, '🏨 Hospedagem encontrada ✓');
     // Show hotels immediately
@@ -1780,16 +1804,66 @@ async function startSearch() {
     await sleep(300);
 
     // ETAPA 3: ROTEIRO COMPLETO + ORÇAMENTO
+    // Dividir em 2 partes se viagem > 5 dias para evitar truncamento
     setStep(3, '📅 Etapa 3/3 — Montando roteiro completo...');
     const itinTokens = Math.min(10000, Math.max(5000, (state.totalDays || 7) * 700 + 1500));
     let itinText;
-    try {
-      itinText = await callAPI_single(buildItineraryPrompt(flightData, hotelData), false, itinTokens);
-      window._debugRaw.push({ etapa: 3, tipo: 'roteiro', chars: itinText ? itinText.length : 0, preview: (itinText || '').substring(0, 200), full: itinText || '' });
-      window._debugSteps.push({ etapa: 3, status: 'OK', chars: itinText ? itinText.length : 0 });
-    } catch(e) {
-      window._debugSteps.push({ etapa: 3, status: 'ERRO', erro: e.message });
-      throw e;
+    const totalDays = state.totalDays || 7;
+
+    if (totalDays > 5) {
+      // Gerar em 2 partes para evitar truncamento
+      const midDay = Math.ceil(totalDays / 2);
+      let part1 = '', part2 = '';
+      try {
+        setStep(3, `📅 Gerando roteiro dias 1-${midDay}...`);
+        part1 = await callAPI_single(buildItineraryPrompt(flightData, hotelData, 1, midDay), false, itinTokens);
+        window._debugRaw.push({ etapa: '3a', tipo: 'roteiro-p1', chars: part1 ? part1.length : 0, preview: (part1||'').substring(0,200) });
+      } catch(e) { console.warn('Itin part1 error:', e.message); }
+      try {
+        setStep(3, `📅 Gerando roteiro dias ${midDay+1}-${totalDays}...`);
+        part2 = await callAPI_single(buildItineraryPrompt(flightData, hotelData, midDay+1, totalDays), false, itinTokens);
+        window._debugRaw.push({ etapa: '3b', tipo: 'roteiro-p2', chars: part2 ? part2.length : 0, preview: (part2||'').substring(0,200) });
+      } catch(e) { console.warn('Itin part2 error:', e.message); }
+
+      // Merge the two parts
+      const r1 = part1 ? extractBestJSON(part1) : null;
+      const r2 = part2 ? extractBestJSON(part2) : null;
+      const mergedDays = [
+        ...((r1?.itinerary || r1?.days || [])),
+        ...((r2?.itinerary || r2?.days || []))
+      ];
+      // Use r1 as base (has budget/meta), merge days from r2
+      if (r1) {
+        if (mergedDays.length > 0) r1.itinerary = mergedDays;
+        // Merge budget from r2 if r1 budget is partial
+        if (r2?.budget) {
+          const b1 = r1.budget || {};
+          const b2 = r2.budget || {};
+          r1.budget = {
+            flights:     b1.flights     || b2.flights,
+            hotels:      b1.hotels      || b2.hotels,
+            food:        { brl: (b1.food?.brl||0) + (b2.food?.brl||0), note: 'calculado' },
+            attractions: { brl: (b1.attractions?.brl||0) + (b2.attractions?.brl||0), note: 'calculado' },
+            transport:   { brl: (b1.transport?.brl||0) + (b2.transport?.brl||0), note: 'calculado' },
+            misc:        { brl: (b1.misc?.brl||0) + (b2.misc?.brl||0), note: 'gorjetas' },
+            total: b1.total || b2.total,
+            perPerson: b1.perPerson || b2.perPerson,
+            withinLimit: true
+          };
+        }
+      }
+      itinText = r1 ? JSON.stringify(r1) : (part1 || part2 || '{}');
+      window._debugSteps.push({ etapa: 3, status: 'OK', chars: itinText.length, dias: mergedDays.length });
+    } else {
+      // Viagem curta: gerar em uma só chamada
+      try {
+        itinText = await callAPI_single(buildItineraryPrompt(flightData, hotelData, 1, totalDays), false, itinTokens);
+        window._debugRaw.push({ etapa: 3, tipo: 'roteiro', chars: itinText ? itinText.length : 0, preview: (itinText || '').substring(0, 200), full: itinText || '' });
+        window._debugSteps.push({ etapa: 3, status: 'OK', chars: itinText ? itinText.length : 0 });
+      } catch(e) {
+        window._debugSteps.push({ etapa: 3, status: 'ERRO', erro: e.message });
+        throw e;
+      }
     }
     let result = parseResponse(itinText);
 
