@@ -70,7 +70,7 @@ async function handleAPI(req, res) {
       };
       const reqBody = {
         model: 'claude-sonnet-4-6',
-        max_tokens: Math.min(maxTokens || 4000, 6000),
+        max_tokens: Math.min(maxTokens || 3000, 10000),
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: prompt }]
       };
@@ -96,10 +96,36 @@ async function handleAPI(req, res) {
       const stopReason = data.stop_reason || '';
       let text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
 
-      // Truncate if max_tokens hit
+      // Repair truncated JSON if max_tokens hit
       if (stopReason === 'max_tokens' && text) {
-        const lb = text.lastIndexOf('}');
-        if (lb > 0) text = text.substring(0, lb + 1);
+        // Count unclosed brackets and close them
+        let opens = 0, aopens = 0;
+        for (const ch of text) {
+          if (ch === '{') opens++;
+          else if (ch === '}') opens--;
+          else if (ch === '[') aopens++;
+          else if (ch === ']') aopens--;
+        }
+        // Find last safe truncation point (after a complete value)
+        const lastComma = text.lastIndexOf(',');
+        const lastBrace = text.lastIndexOf('}');
+        const lastBracket = text.lastIndexOf(']');
+        const cutAt = Math.max(lastComma > 0 ? lastComma : 0, lastBrace, lastBracket);
+        if (cutAt > 0) {
+          text = text.substring(0, cutAt);
+          // Recount after cut
+          opens = 0; aopens = 0;
+          for (const ch of text) {
+            if (ch === '{') opens++;
+            else if (ch === '}') opens--;
+            else if (ch === '[') aopens++;
+            else if (ch === ']') aopens--;
+          }
+        }
+        // Close open arrays then objects
+        for (let i = 0; i < aopens; i++) text += ']';
+        for (let i = 0; i < opens; i++) text += '}';
+        console.log('Repaired truncated JSON: closed', aopens, 'arrays,', opens, 'objects');
       }
 
       if (!text) return sendJSON(res, 500, { error: 'Sem texto. stop_reason=' + stopReason });
