@@ -1633,23 +1633,35 @@ VIAGEM:
 - Viajantes: ${adults} adulto(s), criancas: [${childInfo}]
 - Hotel: ${hotelName || 'a confirmar'}
 - Preferencias: ${prefs}
-- Cambio: EUR=R$${fxEur.toFixed(2)}, USD=R$${fxUsd.toFixed(2)}
+- Cambio: EUR=R$${fxEur.toFixed(2)}, USD=R$${fxUsd.toFixed(2)}, ZAR=R$${(fxUsd*0.055).toFixed(2)}
 - Voos: R$${flightTotal.toLocaleString('pt-BR')} | Hotel: R$${hotelTotal.toLocaleString('pt-BR')}
 ${budgetLimit > 0 ? '- Disponivel atracoes+alimentacao: R$' + remaining.toLocaleString('pt-BR') : ''}
 
-INSTRUCOES:
-- Crie TODOS os ${nights} dias (dia 1 ao dia ${nights})
-- Cada dia: 3-5 atividades (manha, almoco, tarde, jantar)
-- Atracoes pagas: preco real por adulto e crianca separados
-- Use links Civitatis (https://www.civitatis.com/pt/) ou GetYourGuide
-- Inclua refeicoes com precos locais reais estimados
-- Calcule custo total realista de cada dia
+REGRA CRITICA: Gere OBRIGATORIAMENTE TODOS os ${nights} dias, do dia 1 ao dia ${nights}.
+Nao pare antes. Nao resuma. Cada dia completo.
+
+CADA DIA DEVE TER OBRIGATORIAMENTE:
+1. Cafe da manha (category: "food") — preco real local (ex: padaria, cafe do hotel)
+2. Almoco (category: "food") — restaurante local com preco real
+3. 1-2 atracoes/passeios (category: "visit" ou "tour") — com preco real por adulto e crianca
+4. Jantar (category: "food") — com preco real e sugestao de lugar autentico
+5. Transporte do dia (category: "transp") — uber/taxi/metro/onibus com custo estimado real
+6. Gorjeta estimada se aplicavel (category: "misc") — conforme costume local
+
+PRECOS: use valores reais do destino. Ex para Africa do Sul:
+- Cafe: ZAR 80-150/pessoa = R$4-8
+- Almoco restaurante local: ZAR 200-400/pessoa = R$11-22
+- Jantar moderado: ZAR 300-600/pessoa = R$16-33
+- Uber/taxi dia: ZAR 200-400 total = R$11-22
+- Gorjeta: 10-15% do jantar
+
+LINKS: Para cada atracao paga, inclua link real da Civitatis (https://www.civitatis.com/pt/) ou GetYourGuide.
 
 RETORNE APENAS JSON valido. Sem texto antes ou depois.
 Campos obrigatorios no JSON: tripTitle, period, totalDays, travelers, fxRates, seasonInfo, itinerary (array com TODOS os ${nights} dias), budget, priorities, warnings, tips, altDates.
-Em cada dia do itinerary: day, date, isoDate, city, title, dayTotalBRL, dayBreakdown, items.
+Em cada dia: day, date, isoDate, city, title, dayTotalBRL, dayBreakdown, items.
 Em cada item: time, category, name, description, pricePerPerson, childPricePerPerson, childFree, currency, totalBRL, priceBreakdown, bookUrl, free, notes.
-No budget: flights (brl:${flightTotal}), hotels (brl:${hotelTotal}), food, attractions, transport, misc, total, perPerson, withinLimit.`;
+No budget: flights (brl:${flightTotal}), hotels (brl:${hotelTotal}), food (brl: total alimentacao), attractions (brl: total atracoes), transport (brl: total transporte), misc (brl: gorjetas), total, perPerson, withinLimit.`;
 }
 async function startSearch() {
   if (!validateForm()) return;
@@ -1769,7 +1781,7 @@ async function startSearch() {
 
     // ETAPA 3: ROTEIRO COMPLETO + ORÇAMENTO
     setStep(3, '📅 Etapa 3/3 — Montando roteiro completo...');
-    const itinTokens = Math.min(8000, Math.max(4000, (state.totalDays || 7) * 600 + 1000));
+    const itinTokens = Math.min(10000, Math.max(5000, (state.totalDays || 7) * 700 + 1500));
     let itinText;
     try {
       itinText = await callAPI_single(buildItineraryPrompt(flightData, hotelData), false, itinTokens);
@@ -1802,20 +1814,48 @@ async function startSearch() {
     const hotelTotal = bestHotel ? (bestHotel.totalPriceBRL || bestHotel.totalPrice || 0) : 0;
     if (!result.budget) result.budget = {};
     result.budget.flights = { brl: flightTotal, note: 'pesquisado em tempo real' };
-    result.budget.hotels = { brl: hotelTotal, note: 'pesquisado em tempo real' };
-    // Recalculate total from all components
-    const foodBrl = (result.budget.food?.brl || 0);
-    const attrBrl = (result.budget.attractions?.brl || 0);
-    const transBrl = (result.budget.transport?.brl || 0);
-    const miscBrl = (result.budget.misc?.brl || 0);
+    result.budget.hotels  = { brl: hotelTotal,  note: 'pesquisado em tempo real' };
+
+    // Somar custos reais dos itens do roteiro por categoria
+    let _food = 0, _attr = 0, _trans = 0, _misc = 0;
+    (result.itinerary || []).forEach(day => {
+      (day.items || []).forEach(item => {
+        const v = parseFloat(item.totalBRL || item.priceBRL || 0);
+        if (!v) return;
+        const cat = (item.category || '').toLowerCase();
+        if (cat === 'food')   _food  += v;
+        else if (cat === 'visit' || cat === 'tour') _attr  += v;
+        else if (cat === 'transp' || cat === 'transport') _trans += v;
+        else if (cat === 'misc') _misc += v;
+        else if (cat === 'food' || item.name?.toLowerCase().match(/café|almoco|jantar|refeição|lanche|restaurant|bar|café/)) _food += v;
+      });
+    });
+
+    // Usar valores do roteiro se maiores que os do JSON (que costumam vir zerados)
+    const _foodJSON  = parseFloat(result.budget.food?.brl || 0);
+    const _attrJSON  = parseFloat(result.budget.attractions?.brl || 0);
+    const _transJSON = parseFloat(result.budget.transport?.brl || 0);
+    const _miscJSON  = parseFloat(result.budget.misc?.brl || 0);
+
+    const foodBrl  = Math.max(_food,  _foodJSON);
+    const attrBrl  = Math.max(_attr,  _attrJSON);
+    const transBrl = Math.max(_trans, _transJSON);
+    // Misc: gorjetas estimadas em 10% de alimentação se não informado
+    const miscBrl  = _miscJSON || _misc || Math.round(foodBrl * 0.10);
+
+    result.budget.food        = { brl: foodBrl,  note: foodBrl  ? 'calculado do roteiro' : 'estimado' };
+    result.budget.attractions = { brl: attrBrl,  note: attrBrl  ? 'calculado do roteiro' : 'estimado' };
+    result.budget.transport   = { brl: transBrl, note: transBrl ? 'calculado do roteiro' : 'estimado' };
+    result.budget.misc        = { brl: miscBrl,  note: 'gorjetas e imprevistos' };
+
     const calcTotal = flightTotal + hotelTotal + foodBrl + attrBrl + transBrl + miscBrl;
-    if (calcTotal > 0) {
-      result.budget.total = { brl: calcTotal };
-      result.budget.perPerson = result.budget.perPerson || {
-        adult: Math.round(calcTotal / Math.max(1, getAdults() + getChildren().length * 0.7)),
-        child: Math.round(calcTotal * 0.7 / Math.max(1, getAdults() + getChildren().length * 0.7))
-      };
-    }
+    const pax = getAdults() + getChildren().length;
+    result.budget.total = { brl: calcTotal };
+    result.budget.perPerson = {
+      adult: Math.round(calcTotal / Math.max(1, getAdults() + getChildren().length * 0.7)),
+      child: Math.round(calcTotal * 0.7 / Math.max(1, getAdults() + getChildren().length * 0.7))
+    };
+    result.budget.withinLimit = !state.budgetLimit || calcTotal <= parseFloat(state.budgetLimit);
 
     saveToHistory(result, state);
     setStep(4, '✅ Pesquisa concluída!');
