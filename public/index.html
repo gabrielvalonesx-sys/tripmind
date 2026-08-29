@@ -1622,58 +1622,79 @@ function buildFlightPrompt() {
   const fxEur    = parseFloat(state.fxRates?.EUR) || 5.90;
   const fxUsd    = parseFloat(state.fxRates?.USD) || 5.45;
   const childInfo = children.length > 0 ? children.map(a => a + ' anos').join(', ') : 'nenhuma';
-  // Per-child fare label for the prompt
-  const childFareLines = children.map((age, i) => {
-    if (age <= 1)  return `  Crianca ${i+1} (${age} anos): BEBE — taxa ~10%`;
-    if (age <= 11) return `  Crianca ${i+1} (${age} anos): CRIANCA — ~75% do adulto`;
-    return `  Crianca ${i+1} (${age} anos): ADULTO na maioria das cias (verificar)`;
+  const childFareLines = children.map((age, idx) => {
+    if (age <= 1)  return `  Crianca ${idx+1} (${age} anos): BEBE — taxa minima`;
+    if (age <= 11) return `  Crianca ${idx+1} (${age} anos): CRIANCA — ~75% adulto`;
+    return                `  Crianca ${idx+1} (${age} anos): ADULTO (maioria das cias)`;
   }).join('\n');
 
-  return `Pesquise voos REAIS via Google Flights. Use web_search UMA vez.
+  return `Pesquise passagens aereas para este grupo. VOCE DEVE retornar dados de voos — use multiplas buscas web se necessario.
 
-ROTA: JPA ou REC → ${dest} | IDA: ${dateOut} | VOLTA: ${dateBack}
-VIAJANTES: ${adults} adulto(s), criancas: [${childInfo}]
+ROTA: Recife (REC) ou Joao Pessoa (JPA) → ${dest}
+IDA: ${dateOut} | VOLTA: ${dateBack}
+VIAJANTES: ${adults} adulto(s)${children.length > 0 ? ', criancas: [' + childInfo + ']' : ''}
 CAMBIO: EUR=R$${fxEur.toFixed(2)} USD=R$${fxUsd.toFixed(2)}
+${childFareLines ? 'TARIFAS:\n' + childFareLines : ''}
 
-TARIFAS POR IDADE:
-${childFareLines}
+ESTRATEGIA DE BUSCA (execute nesta ordem ate encontrar resultados):
+1. web_search: "voos REC ${dest} ${dateOut}" — verifica LATAM, Azul, GOL
+2. Se nao encontrar: web_search: "passagens aereas Recife ${dest} ${dateOut} preco"
+3. Se nao encontrar: web_search: "flights REC ${dest} ${dateOut} google flights"
+4. Se nao encontrar resultados diretos: use precos tipicos conhecidos para esta rota e informe source como "estimativa baseada em historico"
 
-BUSCA: uma unica pesquisa web: "Google Flights REC ${dest} ${dateOut} preco passagem"
-Verifique LATAM, Azul, GOL, TAP, South African, Ethiopian, Air France, KLM.
+IMPORTANTE: Retorne SEMPRE pelo menos 1 opcao de voo.
+- Se encontrar precos reais: use-os com verified:true
+- Se nao encontrar precos exatos: estime com base no historico da rota e marque verified:false, notes:"preco estimado — confirmar no site"
+- NUNCA retorne flights:[] se a rota e tecnicamente possivel
 
-Calcule totalPriceBRL = soma real de todos passageiros.
-Informe searchedAt com data/hora atual.
+Calcule totalPriceBRL = preco real de TODOS os passageiros do grupo.
+${childFareLines ? 'Aplique tarifas por faixa etaria conforme politica de cada cia.' : ''}
 
-RETORNE JSON com array "flights". Campos: type, origin, airline, departDate, arriveDate, duration, stops, stopCities, priceAdult, priceChild_2_11, totalPriceBRL, totalBRL, currency, totalPriceBreakdown, fromCode, toCode, score, bookUrl, source, searchedAt, notes.
-Se nao encontrar: {"flights":[],"fxRates":{"EUR":${fxEur},"USD":${fxUsd}}}.`;
+RETORNE APENAS JSON valido:
+{"flights":[{"type":"ida+volta","origin":"REC","airline":"LATAM","departDate":"${dateOut}","arriveDate":"data","duration":"Xh","stops":1,"stopCities":["GRU"],"priceAdult":0,"priceChild_2_11":0,"totalPriceBRL":0,"totalBRL":0,"currency":"BRL","totalPriceBreakdown":"calculo","fromCode":"REC","toCode":"XXX","score":"A","bookUrl":"url","source":"Google Flights","searchedAt":"horario","verified":true,"notes":""}],"fxRates":{"EUR":${fxEur},"USD":${fxUsd}}}`;
 }
 function buildHotelPrompt(flightData) {
-  const adults   = getAdults();
-  const children = getChildren();
-  const dest     = (state.destinations || []).join(', ');
-  const dateOut  = state.dateOut  || '';
-  const dateBack = state.dateBack || '';
-  const nights   = state.totalDays || 7;
+  const adults    = getAdults();
+  const children  = getChildren();
+  const dest      = (state.destinations || []).join(', ');
+  const dateOut   = state.dateOut  || '';
+  const dateBack  = state.dateBack || '';
+  const nights    = state.totalDays || 7;
   const childInfo = children.length > 0 ? children.map(a => a + ' anos').join(', ') : 'sem criancas';
-  const fxEur    = parseFloat(state.fxRates?.EUR) || 5.90;
+  const fxEur     = parseFloat(state.fxRates?.EUR) || 5.90;
   const hotelDesc = {
-    comfort:   'Hotel 3★ nota min 8.0 Booking',
-    superior:  'Hotel 4★ nota min 8.5 Booking',
-    luxury:    'Hotel 5★ ou boutique luxo',
-    apartment: 'Apartamento Airbnb/apart-hotel 4.7★+'
-  }[state.hotelStyle] || 'Hotel 4★';
+    comfort:   'Hotel 3 estrelas bem avaliado (nota min 8.0 Booking)',
+    superior:  'Hotel 4 estrelas excelente (nota min 8.5 Booking)',
+    luxury:    'Hotel 5 estrelas ou boutique luxo',
+    apartment: 'Apartamento Airbnb ou apart-hotel bem avaliado (4.7+)'
+  }[state.hotelStyle] || 'Hotel 4 estrelas';
 
-  return `Pesquise hospedagem REAL em ${dest}. Uma busca web.
+  return `Pesquise hospedagem em ${dest} para ${nights} noites. VOCE DEVE retornar dados de hoteis.
 
-DESTINO: ${dest} | CHECK-IN: ${dateOut} | CHECK-OUT: ${dateBack} | NOITES: ${nights}
-HOSPEDES: ${adults} adulto(s), criancas: [${childInfo}]
-CATEGORIA: ${hotelDesc} | CAMBIO: EUR=R$${fxEur.toFixed(2)}
+DESTINO: ${dest}
+CHECK-IN: ${dateOut} | CHECK-OUT: ${dateBack} | NOITES: ${nights}
+HOSPEDES: ${adults} adulto(s)${children.length > 0 ? ', criancas: [' + childInfo + ']' : ''}
+CATEGORIA DESEJADA: ${hotelDesc}
+CAMBIO: EUR=R$${fxEur.toFixed(2)}
 
-BUSCA: "hotel ${dest} ${dateOut} booking.com ${hotelDesc}"
-Verifique politica de criancas para idades [${childInfo}].
+ESTRATEGIA DE BUSCA (execute nesta ordem ate encontrar resultados):
+1. web_search: "hotel ${dest} ${dateOut} booking.com" — filtra por categoria ${hotelDesc}
+2. Se nao encontrar disponibilidade: web_search: "hospedagem ${dest} ${nights} noites ${dateOut}"
+3. Se nao encontrar opcao exata: busque categoria acima ou abaixo da solicitada
+4. Se nao encontrar na data exata: informe opcoes proximas com nota explicando
+5. Ultimo recurso: informe hotel tipico desta categoria em ${dest} com preco medio estimado
 
-RETORNE JSON com array "hotels". Campos: city, name, stars, rating, neighborhood, checkIn, checkOut, nights, pricePerNight, currency, totalPriceBRL, priceBreakdown, childPolicy, amenities, source, bookUrl, bookUrlAirbnb, notes.
-Se nao encontrar: {"hotels":[]}.`;
+IMPORTANTE: Retorne SEMPRE pelo menos 1 opcao de hospedagem.
+- Se encontrar disponibilidade real: use com verified:true
+- Se nao encontrar disponibilidade exata: sugira opcao similar e marque notes:"verificar disponibilidade no site"
+- Se usar preco estimado: marque com notes:"preco medio estimado — confirmar no Booking.com"
+- NUNCA retorne hotels:[] se o destino existe e tem hospedagem
+
+Calcule totalPriceBRL = pricePerNight convertido para BRL × ${nights} noites.
+Verifique politica de criancas para idades: [${childInfo}].
+
+RETORNE APENAS JSON valido:
+{"hotels":[{"city":"${dest}","name":"nome real","stars":3,"rating":"8.5","neighborhood":"bairro","checkIn":"${dateOut}","checkOut":"${dateBack}","nights":${nights},"pricePerNight":0,"currency":"EUR","totalPriceBRL":0,"priceBreakdown":"calculo","childPolicy":"politica","amenities":["WiFi"],"source":"Booking.com","bookUrl":"url","bookUrlAirbnb":"url","notes":""}]}`;
 }
 function buildItineraryPrompt(flightData, hotelData, dayFrom, dayTo) {
   const adults = getAdults();
