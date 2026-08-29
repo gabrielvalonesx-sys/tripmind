@@ -1614,82 +1614,66 @@ function detectCurrencies(destinations) {
 // ── MAIN SEARCH ──
 // ── BUILD STEP-SPECIFIC PROMPTS ──
 function buildFlightPrompt() {
-  const adults = getAdults();
+  const adults   = getAdults();
   const children = getChildren();
-  const dest = (state.destinations || []).join(', ');
-  const dateOut = state.dateOut || '';
+  const dest     = (state.destinations || []).join(', ');
+  const dateOut  = state.dateOut  || '';
   const dateBack = state.dateBack || '';
+  const fxEur    = parseFloat(state.fxRates?.EUR) || 5.90;
+  const fxUsd    = parseFloat(state.fxRates?.USD) || 5.45;
   const childInfo = children.length > 0 ? children.map(a => a + ' anos').join(', ') : 'nenhuma';
-  const fxEur = parseFloat(state.fxRates?.EUR) || 5.90;
-  const fxUsd = parseFloat(state.fxRates?.USD) || 5.45;
+  // Per-child fare label for the prompt
+  const childFareLines = children.map((age, i) => {
+    if (age <= 1)  return `  Crianca ${i+1} (${age} anos): BEBE — taxa ~10%`;
+    if (age <= 11) return `  Crianca ${i+1} (${age} anos): CRIANCA — ~75% do adulto`;
+    return `  Crianca ${i+1} (${age} anos): ADULTO na maioria das cias (verificar)`;
+  }).join('\n');
 
-  return `Pesquise passagens aereas REAIS com precos ATUAIS verificados agora.
+  return `Pesquise voos REAIS via Google Flights. Use web_search UMA vez.
 
-ROTA: JPA (Joao Pessoa) ou REC (Recife) para ${dest}
-DATA IDA: ${dateOut} | VOLTA: ${dateBack}
+ROTA: JPA ou REC → ${dest} | IDA: ${dateOut} | VOLTA: ${dateBack}
 VIAJANTES: ${adults} adulto(s), criancas: [${childInfo}]
 CAMBIO: EUR=R$${fxEur.toFixed(2)} USD=R$${fxUsd.toFixed(2)}
 
-INSTRUCOES DE BUSCA (siga esta ordem exata):
-1. Busque no Google Flights: acesse https://www.google.com/travel/flights e pesquise a rota ${dest} saindo de REC e JPA em ${dateOut}
-2. Anote os precos EXATOS exibidos no Google Flights para cada opcao (preco por adulto)
-3. Verifique tambem no site da LATAM (latamairlines.com) o preco para a mesma rota e data
-4. Use web_search com: "Google Flights REC ${dest} ${dateOut} preco"
-5. MAXIMO 2 buscas web no total
+TARIFAS POR IDADE:
+${childFareLines}
 
-CALCULO DE PRECO TOTAL DO GRUPO (OBRIGATORIO):
-- Adultos (${adults}): cada um paga tarifa adulto completa
-- Criancas por faixa etaria conforme politica da cia aerea:
-  ${childInfo.split(', ').map((c,i) => {
-    const age = parseInt(c);
-    if (age <= 1) return `  Crianca ${i+1} (${c}): BEBE — taxa ~10% do adulto (colo, sem assento)`;
-    if (age <= 11) return `  Crianca ${i+1} (${c}): CRIANCA — tarifa ~75% do adulto (assento proprio)`;
-    return `  Crianca ${i+1} (${c}): LATAM e maioria das cias = ADULTO (tarifa integral)`;
-  }).join('\n  ')}
-- Calcule e informe o totalPriceBRL = soma de TODOS os passageiros
-- Informe o priceBreakdown detalhado (ex: "2 adultos x R$4.500 + 1 crianca x R$3.375 + 1 adulto x R$4.500 = R$16.375")
+BUSCA: uma unica pesquisa web: "Google Flights REC ${dest} ${dateOut} preco passagem"
+Verifique LATAM, Azul, GOL, TAP, South African, Ethiopian, Air France, KLM.
 
-AVISOS IMPORTANTES:
-- Informe a DATA E HORA da consulta no campo "searchedAt"
-- Precos de passagem variam constantemente — o valor e uma referencia do momento da busca
-- O usuario devera confirmar o preco final no site da companhia antes de comprar
+Calcule totalPriceBRL = soma real de todos passageiros.
+Informe searchedAt com data/hora atual.
 
-RETORNE APENAS JSON valido. O JSON DEVE ter o array "flights".
-Campos obrigatorios em cada voo: type, origin, airline, departDate, arriveDate, duration, stops, stopCities, priceAdult, priceChild_2_11, priceChild_0_1, totalPriceBRL, totalBRL, currency, totalPriceBreakdown, fromCode, toCode, score, bookUrl, source, searchedAt, priceWarning, notes.
-priceWarning deve ser: "Preco consultado em ${new Date().toLocaleString('pt-BR')} via Google Flights. Confirme o valor final no site da companhia antes de comprar."
-Se nao encontrar precos reais, retorne: {"flights":[],"fxRates":{"EUR":${fxEur},"USD":${fxUsd}}}.`;
+RETORNE JSON com array "flights". Campos: type, origin, airline, departDate, arriveDate, duration, stops, stopCities, priceAdult, priceChild_2_11, totalPriceBRL, totalBRL, currency, totalPriceBreakdown, fromCode, toCode, score, bookUrl, source, searchedAt, notes.
+Se nao encontrar: {"flights":[],"fxRates":{"EUR":${fxEur},"USD":${fxUsd}}}.`;
 }
 function buildHotelPrompt(flightData) {
-  const adults = getAdults();
+  const adults   = getAdults();
   const children = getChildren();
-  const dest = (state.destinations || []).join(', ');
-  const dateOut = state.dateOut || '';
+  const dest     = (state.destinations || []).join(', ');
+  const dateOut  = state.dateOut  || '';
   const dateBack = state.dateBack || '';
-  const nights = dateOut && dateBack ? Math.round((new Date(dateBack) - new Date(dateOut)) / 86400000) : 7;
-  const hotelDesc = {
-    comfort:   'Hotel 3 estrelas bem avaliado (nota minima 8.0 Booking)',
-    superior:  'Hotel 4 estrelas excelente (nota minima 8.5 Booking)',
-    luxury:    'Hotel 5 estrelas ou boutique de luxo',
-    apartment: 'Apartamento familiar Airbnb ou apart-hotel bem avaliado (4.7+)'
-  }[state.hotelStyle] || 'Hotel 4 estrelas';
+  const nights   = state.totalDays || 7;
   const childInfo = children.length > 0 ? children.map(a => a + ' anos').join(', ') : 'sem criancas';
-  const fxEur = parseFloat(state.fxRates?.EUR) || 5.90;
+  const fxEur    = parseFloat(state.fxRates?.EUR) || 5.90;
+  const hotelDesc = {
+    comfort:   'Hotel 3★ nota min 8.0 Booking',
+    superior:  'Hotel 4★ nota min 8.5 Booking',
+    luxury:    'Hotel 5★ ou boutique luxo',
+    apartment: 'Apartamento Airbnb/apart-hotel 4.7★+'
+  }[state.hotelStyle] || 'Hotel 4★';
 
-  return `Pesquise hospedagem REAL em ${dest}. Use web_search para precos atuais.
+  return `Pesquise hospedagem REAL em ${dest}. Uma busca web.
 
-DESTINO: ${dest}
-CHECK-IN: ${dateOut} | CHECK-OUT: ${dateBack} | NOITES: ${nights}
+DESTINO: ${dest} | CHECK-IN: ${dateOut} | CHECK-OUT: ${dateBack} | NOITES: ${nights}
 HOSPEDES: ${adults} adulto(s), criancas: [${childInfo}]
-CATEGORIA: ${hotelDesc}
-CAMBIO: EUR=R$${fxEur.toFixed(2)}
+CATEGORIA: ${hotelDesc} | CAMBIO: EUR=R$${fxEur.toFixed(2)}
 
-FAÇA NO MÁXIMO 1 busca web:
-1. "hotel ${dest} ${dateOut} ${hotelDesc} booking" — uma busca abrangente
+BUSCA: "hotel ${dest} ${dateOut} booking.com ${hotelDesc}"
+Verifique politica de criancas para idades [${childInfo}].
 
-RETORNE APENAS JSON valido. Sem texto antes ou depois.
-O JSON DEVE conter o array "hotels" com as opcoes encontradas.
-Campos em cada hotel: city, name, stars, rating, neighborhood, checkIn, checkOut, nights, pricePerNight, currency, totalPriceBRL, priceBreakdown, childPolicy, amenities, source, bookUrl, notes.
-Se nao encontrar hoteis, retorne apenas: {"hotels":[]}.`;
+RETORNE JSON com array "hotels". Campos: city, name, stars, rating, neighborhood, checkIn, checkOut, nights, pricePerNight, currency, totalPriceBRL, priceBreakdown, childPolicy, amenities, source, bookUrl, bookUrlAirbnb, notes.
+Se nao encontrar: {"hotels":[]}.`;
 }
 function buildItineraryPrompt(flightData, hotelData, dayFrom, dayTo) {
   const adults = getAdults();
@@ -1975,21 +1959,43 @@ async function startSearch() {
     const bestHotel=sortedHotels[0]?.h||null,hotelTotal=sortedHotels[0]?.p||0;
     if(bestHotel&&!bestHotel.totalPriceBRL)bestHotel.totalPriceBRL=hotelTotal;
     if (!result.budget) result.budget = {};
-    result.budget.flights = { brl: flightTotal, note: `pesquisado em tempo real · confirme no site antes de comprar` };
-    result.budget.hotels = { brl: hotelTotal, note: 'pesquisado em tempo real' };
-    // Recalculate total from all components
-    const foodBrl = (result.budget.food?.brl || 0);
-    const attrBrl = (result.budget.attractions?.brl || 0);
-    const transBrl = (result.budget.transport?.brl || 0);
-    const miscBrl = (result.budget.misc?.brl || 0);
+    result.budget.flights = { brl: flightTotal, note: 'pesquisado em tempo real · confirme no site antes de comprar' };
+    result.budget.hotels  = { brl: hotelTotal,  note: 'pesquisado em tempo real' };
+
+    // Sum real costs from itinerary items by category
+    let _sumFood=0, _sumAttr=0, _sumTrans=0, _sumMisc=0;
+    (result.itinerary||[]).forEach(day=>{
+      (day.items||[]).forEach(item=>{
+        const v=parseFloat(item.totalBRL||item.priceBRL||0);
+        if(!v) return;
+        const cat=(item.category||'').toLowerCase();
+        if(cat==='food') _sumFood+=v;
+        else if(cat==='visit'||cat==='tour') _sumAttr+=v;
+        else if(cat==='transp'||cat==='transport') _sumTrans+=v;
+        else if(cat==='misc') _sumMisc+=v;
+      });
+    });
+
+    // Use larger of: itinerary sum vs Claude's budget estimate
+    const foodBrl  = Math.max(_sumFood,  parseFloat(result.budget.food?.brl||0));
+    const attrBrl  = Math.max(_sumAttr,  parseFloat(result.budget.attractions?.brl||0));
+    const transBrl = Math.max(_sumTrans, parseFloat(result.budget.transport?.brl||0));
+    // Misc: use Claude's value or estimate 10% of food as tips
+    const miscBrl  = parseFloat(result.budget.misc?.brl||0) || _sumMisc || Math.round(foodBrl*0.10);
+
+    result.budget.food        = { brl: foodBrl,  note: foodBrl  ? 'calculado do roteiro' : 'a calcular' };
+    result.budget.attractions = { brl: attrBrl,  note: attrBrl  ? 'calculado do roteiro' : 'a calcular' };
+    result.budget.transport   = { brl: transBrl, note: transBrl ? 'calculado do roteiro' : 'a calcular' };
+    result.budget.misc        = { brl: miscBrl,  note: 'gorjetas e imprevistos' };
+
     const calcTotal = flightTotal + hotelTotal + foodBrl + attrBrl + transBrl + miscBrl;
-    if (calcTotal > 0) {
-      result.budget.total = { brl: calcTotal };
-      result.budget.perPerson = result.budget.perPerson || {
-        adult: Math.round(calcTotal / Math.max(1, getAdults() + getChildren().length * 0.7)),
-        child: Math.round(calcTotal * 0.7 / Math.max(1, getAdults() + getChildren().length * 0.7))
-      };
-    }
+    result.budget.total = { brl: calcTotal };
+    const _pax = getAdults() + getChildren().length;
+    result.budget.perPerson = {
+      adult: Math.round(calcTotal / Math.max(1, getAdults() + getChildren().length * 0.7)),
+      child: Math.round(calcTotal * 0.7 / Math.max(1, getAdults() + getChildren().length * 0.7))
+    };
+    result.budget.withinLimit = !state.budgetLimit || calcTotal <= parseFloat(state.budgetLimit);
 
     saveToHistory(result, state);
     setStep(4, '✅ Pesquisa concluída!');
@@ -2180,522 +2186,6 @@ function buildBudgetInstructions() {
     + '- Criança: ~R$ ' + perChild.toLocaleString('pt-BR') + ' total (média 60% do adulto)';
 }
 
-function buildPrompt() {
-  const today = new Date();
-  const todayStr = today.toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'});
-
-  // ── Traveler composition ──
-  const adults = getAdults();
-  const children = getChildren();
-  const totalPax = adults + children.length;
-
-  // Classify children by airline age bands
-  const infants   = children.filter(a => a < 2);   // lap infant, usually free or ~10%
-  const youngKids = children.filter(a => a >= 2 && a <= 11); // child fare ~75%
-  const teens     = children.filter(a => a >= 12 && a <= 17); // adult fare most airlines
-
-  const travelerDesc = state.travelerType === 'solo' ? '1 adulto' :
-    state.travelerType === 'couple' ? '2 adultos (casal)' :
-    state.travelerType === 'group' ? `${adults} adultos (grupo)` :
-    `${adults} adultos + ${children.length} criança(s): ${children.map(a => a + ' anos').join(', ')}`;
-
-  const childBreakdown = children.length > 0 ? `
-Composição etária das crianças (impacta DIRETAMENTE nos preços):
-- Bebês/colos (< 2 anos): ${infants.length} — geralmente grátis nos voos (colo), paga taxa mínima; em hotéis geralmente grátis
-- Crianças (2–11 anos): ${youngKids.length} — tarifa reduzida em voos (~50–75% do adulto dependendo da cia); desconto ou grátis em hotéis e atrações
-- Adolescentes (12–17 anos): ${teens.length} — tarifa adulta na maioria das cias aéreas; desconto em atrações (verificar)
-IMPORTANTE: calcule o custo REAL de cada item levando em conta cada faixa etária. Não some simplesmente o preço adulto x total de pessoas.` : '';
-
-  // ── Date mode ──
-  let periodInstructions = '';
-  if (state.dateMode === 'season') {
-    const hem = state.seasonHemisphere || 'north';
-    const seasonKey = state.seasonSelected || 'spring';
-    const sd = SEASON_DATA[hem]?.[seasonKey] || {};
-    const year = state.seasonYear || '2026';
-    const dur = state.seasonDuration || 10;
-    const priority = state.seasonPriority || 'balanced';
-    const priorityLabels = {
-      cheapest: 'MAIS BARATO — encontrar os dias com menor preço de voo+hotel dentro da estação',
-      weather: 'MELHOR CLIMA — identificar o subperíodo com melhor clima histórico dentro da estação',
-      balanced: 'EQUILIBRADO — bom preço com bom clima, evitar feriados que encarecem',
-      lowcrowd: 'MENOS TURISTAS — identificar semanas de menor ocupação turística dentro da estação'
-    };
-    const [startMonth, endMonth] = sd.dates || ['03-01','05-31'];
-    // Handle winter crossing year boundary
-    let startDate = `${year}-${startMonth}`;
-    let endDate = `${year}-${endMonth}`;
-    if (seasonKey === 'winter' && hem === 'north') {
-      startDate = `${year}-12-01`;
-      endDate = `${parseInt(year)+1}-02-28`;
-    }
-    periodInstructions = `
-MODO BUSCA POR ESTAÇÃO:
-- Estação: ${sd.label || seasonKey} (${sd.months || ''}) no ${hem === 'north' ? 'Hemisfério Norte' : hem === 'south' ? 'Hemisfério Sul' : 'Trópicos'}
-- Período a varrer: ${startDate} até ${endDate}
-- Duração desejada da viagem: ${dur} dias
-- Prioridade: ${priorityLabels[priority]}
-
-TAREFA PRINCIPAL:
-1. Varrer TODA a estação buscando preços de voo (JPA/REC → destino) e hospedagem
-2. Identificar as 5 melhores janelas de ${dur} dias dentro da estação para esta prioridade
-3. Mostrar preço total estimado de cada janela + motivo (feriado, evento, baixa demanda, etc)
-4. Montar roteiro COMPLETO para a janela mais vantajosa encontrada
-5. Em altDates: retornar as outras 4 janelas como alternativas ordenadas
-
-CONTEXTO DA ESTAÇÃO para ${state.destinations.join(', ')}:
-- Verificar via web_search o clima típico de ${state.destinations[0]} nessa estação
-- Verificar feriados locais e nacionais no período
-- Verificar eventos ou festivais que possam impactar preços/experiência
-- Verificar se é alta ou baixa temporada turística para o destino nessa estação
-- Nota sobre essa estação: ${sd.note || ''}`;
-
-  } else if (state.dateMode === 'best') {
-    const win = state.searchWindow || '6';
-    const dur = state.tripDuration || 10;
-    const base = state.baseMonth
-      ? new Date(state.baseMonth + '-01').toLocaleDateString('pt-BR', {month:'long', year:'numeric'})
-      : 'próximos meses';
-    periodInstructions = `
-MODO MELHOR PREÇO:
-- Duração da viagem: ${dur} dias
-- Referência: ${base}
-- Janela: ${win} meses antes e depois (total ${parseInt(win)*2} meses de análise)
-- Pesquise preços em diferentes períodos — identifique os 3 mais baratos e os 2 mais caros
-- Leve em conta alta/baixa temporada, feriados BR e locais, férias escolares, eventos
-- Monte o roteiro completo para o período mais barato encontrado
-- Em altDates, retorne mínimo 3 opções ordenadas do mais barato ao mais caro com saving real em R$`;
-  } else {
-    const dOut = new Date(state.dateOut);
-    const dBack = new Date(state.dateBack);
-    const days = Math.round((dBack - dOut) / 86400000);
-    const dOutFmt = dOut.toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'});
-    const dBackFmt = dBack.toLocaleDateString('pt-BR', {day:'2-digit', month:'long', year:'numeric'});
-    const flex = state.flexDates === 'none' ? 'Datas FIXAS — não sugerir alternativas próximas'
-      : `Flexibilidade ±${state.flexDates} dias — buscar se há datas mais baratas nesse intervalo`;
-    periodInstructions = `
-PERÍODO:
-- Ida: ${dOutFmt} | Volta: ${dBackFmt} | Total: ${days} dias
-- Flexibilidade: ${flex}`;
-  }
-
-  const hotelDesc = {
-    comfort:   'Hotel 3★ bem avaliado (nota mínima 8.0 Booking), boa localização, custo-benefício',
-    superior:  'Hotel 4★ excelente (nota mínima 8.5 Booking), ótima localização e serviço',
-    luxury:    'Hotel 5★ ou boutique de luxo, sem restrição de preço',
-    apartment: 'Apartamento familiar Airbnb/apart-hotel, espaçoso, cozinha, bem avaliado (mínimo 4.7★)',
-  }[state.hotelStyle];
-
-  return `Você é especialista em viagens com web search em tempo real. Data hoje: ${todayStr}.
-
-REGRA DE OURO: Use web_search para TODOS os preços. Nunca invente valores. Se não achar preço exato, indique "estimativa" e dê o site para verificar.
-
-═══════════════════════════════
-DADOS DA VIAGEM
-═══════════════════════════════
-Destinos: ${state.destinations.join(' → ')}
-Viajantes: ${travelerDesc} (${totalPax} pessoas no total)
-${childBreakdown}
-Hospedagem: ${hotelDesc}
-Preferências: ${state.prefs || 'experiências autênticas e imersivas, gastronomia local genuína, bairros fora do circuito turístico, atividades que permitam viver o destino como morador — não apenas visitar'}
-${buildBudgetInstructions()}
-${periodInstructions}
-
-═══════════════════════════════
-ORIGEM DOS VOOS — OBRIGATÓRIO
-═══════════════════════════════
-SEMPRE comparar e pesquisar nas duas origens:
-1. João Pessoa JPA — Aeroporto Presidente Castro Pinto
-2. Recife REC — Aeroporto Guararapes-Gilberto Freyre
-
-Regras de comparação:
-- Mostrar preço de ambas no resultado
-- Recomendar a mais barata considerando deslocamento JPA→REC (~R$ 150-200/trajeto)
-- Se diferença < R$ 500/pessoa total: recomendar JPA pela comodidade
-- Identificar se há voos diretos ou com escala de cada origem
-
-═══════════════════════════════
-PESQUISA DE VOOS — TODAS AS CIAS
-═══════════════════════════════
-⚠️ REGRA CRÍTICA DE DATAS: buscar especificamente para as datas abaixo.
-Não use datas aproximadas, não use "flights this month", não use datas de outros meses.
-Se não encontrar voo na data exata, dizer EXPLICITAMENTE "não encontrado para ${state.dateOut}" e sugerir datas próximas.
-
-Data exata de ida: ${state.dateOut || 'verificar com usuário'}
-Data exata de volta: ${state.dateBack || 'verificar com usuário'}
-
-Pesquise em TODAS as companhias que operam o trecho, sem exceção:
-- Companhias brasileiras: LATAM, Azul, GOL
-- Companhias internacionais relevantes para o trecho: Iberia, TAP, Air France, KLM, Lufthansa, British Airways, American Airlines, Delta, United, Emirates, Turkish Airlines, Alitalia/ITA, easyJet, Ryanair, Vueling, e qualquer outra que opere o trecho específico
-- Agregar resultados de: Google Flights (hl=pt-BR), Kayak.com.br, Skyscanner.com.br
-- Para cada voo encontrado, verificar se há tarifa específica para bebê, criança e adolescente
-
-COMPOSIÇÃO DE PREÇO POR FAIXA ETÁRIA (regras por cia):
-- LATAM/GOL/Azul: bebê (0-1) ~R$ 80-150 taxa; criança (2-11) ~75% adulto; adolescente (12+) tarifa adulta
-- Iberia/TAP/Air France: bebê (0-1) 10% adulto; criança (2-11) ~75% adulto; jovem (12-17) tarifa adulta
-- Low-cost (Ryanair, easyJet, Vueling): bebê taxa fixa ~€25-50; crianças 2+ tarifa quase igual ao adulto
-- CALCULE o total real: não multiplique simplesmente por ${totalPax}
-
-LINKS DIRETOS EM PT-BR para reserva (use bookUrl no JSON):
-- LATAM: https://www.latamairlines.com/br/pt/oferta-voos
-- Azul: https://www.voeazul.com.br/pt/br
-- GOL: https://www.voegol.com.br/pt/passagens-aereas
-- Iberia: https://www.iberia.com/pt/ (versão portuguesa)
-- TAP: https://www.tapairportugal.com/pt
-- Air France: https://www.airfrance.com.br
-- KLM: https://www.klm.com/travel/br_pt
-- Lufthansa: https://www.lufthansa.com/br/pt
-- British Airways: https://www.britishairways.com/pt-br
-- Turkish Airlines: https://www.turkishairlines.com/pt-br
-- Emirates: https://www.emirates.com/br/portuguese
-- Google Flights PT-BR: https://www.google.com/travel/flights?hl=pt-BR&curr=BRL
-
-═══════════════════════════════
-PESQUISA DE HOSPEDAGEM
-═══════════════════════════════
-- Booking.com: buscar em pt-br, nota mínima 8.0, nunca sugerir hostel/albergue
-- Airbnb: buscar apartamentos/casas bem avaliados se estilo "apartment"
-- Verificar se hotel tem política de crianças (camas extras, berços, área kids)
-- Para ${children.length > 0 ? `família com crianças (${children.map(a=>a+' anos').join(', ')})` : 'adultos'}: verificar se crianças ficam grátis no quarto dos pais ou precisam de quarto extra
-- Links PT-BR: Booking.com/search.pt-br.html, airbnb.com.br
-
-PREÇOS REAIS por composição:
-- Adultos: ${adults}
-- Crianças: ${children.map(a => a + ' anos').join(', ') || 'nenhuma'}
-- Verificar política de cada hotel para crianças no quarto dos pais
-
-═══════════════════════════════
-CURADORIA DO ROTEIRO — FILOSOFIA CENTRAL
-═══════════════════════════════
-O usuário quer EXPERIÊNCIAS AUTÊNTICAS e MEMORÁVEIS. Não é turista de lista de checklist.
-Gosta de viver os destinos de dentro, com profundidade.
-
-CRITÉRIOS DE SELEÇÃO DAS ATRAÇÕES (por ordem de prioridade):
-1. AVALIAÇÃO REAL DE VIAJANTES — buscar via web_search:
-   - TripAdvisor: atrações com nota 4.5+ e mínimo 500 avaliações (verificar ranking "coisas para fazer")
-   - Google Maps: nota 4.4+ com alto volume de avaliações
-   - GetYourGuide/Viator: tours com badge "Favorito dos viajantes" ou "Best Seller"
-   - Guia Michelin, Time Out, Condé Nast Traveler, Lonely Planet: quando aplicável
-   - Indicar SEMPRE a nota e número de avaliações: ex. "⭐ 4.8 (12.400 avaliações TripAdvisor)"
-
-2. HIERARQUIA DE EXPERIÊNCIAS — em cada destino, priorizar nesta ordem:
-   a) EXPERIÊNCIAS ÚNICAS E IMERSIVAS: mercados locais ao amanhecer, tour com morador local,
-      aula de culinária típica, visita a produtor de vinho/queijo/azeite, backstage de monumentos,
-      jantar em casa de família local, tour de street art com artista, concerto em local histórico,
-      passeio de barco em horário alternativo (amanhecer/entardecer), bairros não turísticos
-   b) CLÁSSICOS IMPERDÍVEIS (mas com abordagem diferenciada): os monumentos icônicos existem
-      por razão — mas sugerir o horário certo (primeira entrada, luz dourada, sem filas),
-      o ângulo menos óbvio, o tour privado vs. o massivo
-   c) GASTRONOMIA COMO EXPERIÊNCIA: não só "restaurante bom" mas mercado de produtores,
-      tour gastronômico de bairro, bar frequentado por locais (não turistas), degustação
-      de produto típico na origem, street food cult da cidade
-   d) NATUREZA E RESPIRAÇÃO: parques, mirantes, trilhas, jardins botânicos históricos —
-      momentos de pausa entre as experiências intensas
-
-3. O QUE EVITAR (a menos que seja genuinamente especial):
-   - Restaurantes na calçada de monumentos com cardápio em 8 idiomas e foto de cada prato
-   - Lojas de souvenir genéricas
-   - Tours de ônibus turístico com microfone (salvo exceção justificada)
-   - Museus extensos visitados por obrigação — preferir UM museu bem escolhido a três mediocres
-   - Atrações com fila de horas sem valor proporcional à experiência
-   - Qualquer coisa que o viajante vai esquecer em uma semana
-
-4. PARA CADA ATRAÇÃO/EXPERIÊNCIA SUGERIDA, incluir:
-   - Por que essa e não outra: "Escolhida por ser a experiência mais autêntica de X segundo Y avaliações no TripAdvisor"
-   - Nível de intensidade turística: 🟢 local / 🟡 misto / 🔴 muito turístico
-   - Melhor horário: manhã cedo, entardecer, noite — e por quê
-   - Dica insider que viajantes experientes mencionam nas avaliações
-   - Nota e volume de avaliações verificados
-
-5. ESTRUTURA DO DIA — ritmo inteligente:
-   - Máx 2-3 atrações/experiências significativas por dia (não maratona de 8 museus)
-   - Pausas estratégicas em cafés ou praças locais — esses momentos são experiências também
-   - Uma refeição por dia em lugar especial, as outras em lugares simples e autênticos
-   - Tempo livre não estruturado: "tarde livre para se perder pelo bairro X"
-   - Considerar energia de ${children.length > 0 ? 'crianças (pausas a cada 2-3h de atividade intensa)' : 'grupo'}
-
-6. TOURS E PASSEIOS GUIADOS — quando recomendar:
-   - Sempre que o contexto histórico/cultural fizer a experiência 3x mais rica
-   - Preferir guias locais especializados a tours genéricos de ônibus
-   - Guia em PORTUGUÊS quando disponível (verificar Civitatis, GetYourGuide, Viator)
-   - Tours pequenos/privados para ${travelerDesc} são muito superiores aos em grupo grande
-   - Verificar avaliações do guia específico, não só do tour em geral
-
-PARA CADA ATRAÇÃO/PASSEIO PAGO, incluir no JSON:
-- "whyThisOne": por que essa atração/experiência é a melhor escolha no destino
-- "tripAdvisorRating": nota e nº avaliações (verificar)
-- "insiderTip": dica que só quem esteve sabe
-- "bestTime": melhor horário/época para visitar
-- "touristLevel": "local" | "misto" | "turístico" | "muito turístico"
-- Preço adulto + preço criança (por faixa etária) — REAL, verificado
-- Se crianças menores de X anos entram grátis — especificar X
-- Se há tour em português disponível
-- bookUrl: link direto PT-BR para compra antecipada:
-   - Civitatis: https://www.civitatis.com/pt/[cidade]/
-   - GetYourGuide: https://www.getyourguide.com.br/s/?q=[atividade]&location=[cidade]&adults=${adults}${children.map(a => '&childrenAges='+a).join('')}
-   - Viator PT-BR: https://www.viator.com/pt-BR/tours/[cidade]/
-- requiresAdvanceBooking: true/false + onde e com quanto de antecedência
-
-CUSTO REAL POR ATRAÇÃO para ${travelerDesc}:
-- Calcular total levando em conta cada faixa etária
-- Separar: preço adulto / preço criança / total do grupo
-- Indicar se reserva antecipada é obrigatória ou recomendada
-
-CUSTOS DIÁRIOS REALISTAS — OBRIGATÓRIO:
-Para CADA DIA do roteiro, os custos devem refletir a realidade local com precisão:
-
-Alimentação (pesquisar preços reais no destino):
-- ☕ Café da manhã: se NÃO incluso no hotel → preço real de café+pão+suco em padaria/bar local
-  (ex: bar italiano = €3-5/pessoa; café parisiense = €8-12; NY diner = US$12-18)
-- 🥗 Almoço: preço médio de restaurante popular/bistrô (não turístico) por adulto e criança
-- 🍷 Jantar: preço médio de restaurante adequado ao perfil (família, gastronomia local)
-  Incluir: coperto/couvert se aplicável ao país, taxa de serviço
-- 🍦 Lanches/cafés ao longo do dia: sorvete, água, café, snacks turísticos
-- 🍺 Bebidas: incluir custo estimado de bebidas alcoólicas por refeição se perfil adulto/casal
-  (ex: vinho na Itália €15-25/garrafa no restaurante; cerveja em Munique €5-7; cocktail em NY US$15-20)
-
-Transportes locais (por dia):
-- Metro/ônibus/trem urbano: preço por pessoa, informar se há pass diário mais vantajoso
-- Táxi/Uber: quando necessário (aeroporto, noite, bagagens)
-- Transfer: se aplicável (aeroporto → hotel na chegada/saída)
-- Aluguel de bike/patinete se relevante para o destino
-
-Ingressos e passeios (verificar preço real atual):
-- Cada atração paga: preço adulto + preço criança + se há gratuidade por faixa etária
-- Tours guiados: preço real por pessoa (Civitatis/GYG/Viator)
-- Reserva antecipada: indicar se obrigatória e onde fazer
-- Gorjeta para guias se aplicável ao país
-
-Outros custos diários:
-- Cartões/passes turísticos vantajosos (City Pass, Museum Pass, etc.) — calcular se vale
-- Estacionamento se for de carro
-- Gorjetas: costumes do país (EUA obrigatório 15-20%, Europa opcional 5-10%, Japão não se dá)
-- Compras de farmácia, souvenirs pequenos: prever €10-20/dia
-- Wi-Fi/chip local se necessário
-
-FORMATO OBRIGATÓRIO para cada item do itinerary:
-Incluir "priceBreakdown" explicando o cálculo:
-Ex: "2 adultos × €15 + 1 criança(7 anos) × €8 = €38 = R$225"
-Para refeições: "Almoço 4 pessoas: 2 adultos €18 + 1 criança menu €9 + 1 criança €8 = €53 = R$314"
-
-═══════════════════════════════
-ANÁLISES OBRIGATÓRIAS
-═══════════════════════════════
-1. Cotação atual de TODAS as moedas dos países visitados vs BRL (buscar em tempo real)
-2. Classificação da temporada (baixa/média/alta/altíssima) com justificativa
-3. Tendência de preço dos voos (subindo/caindo/estável) e recomendação de quando comprar
-4. Eventos, feriados e alertas nas datas pesquisadas que afetam preços ou experiência
-5. Score A/B/C/D para cada voo (preço + tempo + cia + escalas) e hotel (preço×nota×localização)
-6. Prioridades de reserva: o que comprar AGORA vs. em breve vs. pode esperar
-7. Datas alternativas mais baratas (mínimo 3 opções se houver economia > R$ 800)
-8. CHECKLIST COMPLETO — VERIFICAR TUDO VIA WEB_SEARCH:
-   ⚠️ NUNCA invente requisitos. Pesquise a situação ATUAL de cada item.
-   
-   documents (pesquisar obrigatoriamente via web_search):
-   - Passaporte: verificar validade mínima exigida pelo país de destino HOJE
-   - Visto: verificar se brasileiros precisam de visto para ${state.destinations.join(' e ')} ATUALMENTE
-   - ETIAS: verificar via web_search se já entrou em vigor para Brasil e se é necessário — 
-     buscar "ETIAS brasileiros ${new Date().getFullYear()}" — não assuma, verifique
-   - Vacinas: verificar se há exigência de vacinas para entrada no país de destino
-   - Seguro viagem: verificar se é obrigatório (ex: Schengen exige)
-   
-   beforeBuying: listar o que precisa ser comprado com antecedência, em ordem de urgência
-   beforeTrip: chip internacional (verificar operadoras), câmbio (onde e quando), adaptador elétrico
-   packing: baseado no clima real do destino na época da viagem (pesquisar previsão histórica)
-   onArrival: primeiros passos ao chegar, como sair do aeroporto, ativar chip
-9. MAP POINTS: para cada atração/hotel/restaurante do roteiro, fornecer coordenadas lat/lng
-   (pesquisar no Google Maps se necessário) para montar o mapa do roteiro
-
-═══════════════════════════════
-FORMATO JSON — responda APENAS o JSON, sem texto antes ou depois
-═══════════════════════════════
-{
-  "tripTitle": "string",
-  "destinations": ["array"],
-  "period": "string",
-  "totalDays": 10,
-  "travelers": "${travelerDesc}",
-  "travelerBreakdown": {
-    "adults": ${adults},
-    "children": ${JSON.stringify(children)},
-    "infants": ${infants.length},
-    "youngKids": ${youngKids.length},
-    "teens": ${teens.length},
-    "totalPax": ${totalPax}
-  },
-  "fxRates": {"EUR": 5.92, "USD": 5.45},
-  "totalBRL": 45000,
-  "totalNote": "string — detalhamento do total",
-  "costPerPerson": {"adult": 8000, "child": 5000, "note": "string"},
-  "seasonInfo": {
-    "classification": "baixa|média|alta|altíssima",
-    "label": "string",
-    "note": "string — por que essa classificação"
-  },
-  "priceTrend": {
-    "direction": "subindo|caindo|estável",
-    "note": "Recomendação de quando comprar"
-  },
-  "alerts": [
-    {"type": "event|holiday|weather|strike", "title": "string", "impact": "alto|médio|baixo", "description": "string"}
-  ],
-  "flights": [
-    {
-      "type": "ida|volta|ida-e-volta",
-      "origin": "JPA|REC",
-      "originRecommended": true,
-      "originNote": "string — por que JPA ou REC",
-      "from": "cidade",
-      "fromCode": "XXX",
-      "to": "cidade",
-      "toCode": "XXX",
-      "airline": "string",
-      "flightNum": "string|null",
-      "departDate": "string",
-      "arriveDate": "string",
-      "duration": "string",
-      "stops": 0,
-      "stopCities": ["array — cidades de escala"],
-      "priceAdult": 2500,
-      "priceChild_0_1": 0,
-      "priceChild_2_11": 1800,
-      "priceChild_12_17": 2500,
-      "currency": "BRL",
-      "totalPriceBRL": 10000,
-      "totalPriceBreakdown": "2 adultos × R$2.500 + 1 criança(7 anos) × R$1.800 = R$6.800",
-      "score": "A|B|C|D",
-      "scoreNote": "string",
-      "badges": ["Direto", "Melhor preço", "Mais rápido"],
-      "source": "Google Flights / Kayak / site cia",
-      "bookUrl": "URL PT-BR do site da companhia ou Google Flights",
-      "bookUrlKayak": "https://www.kayak.com.br/...",
-      "bookUrlSkyscanner": "https://www.skyscanner.com.br/...",
-      "notes": "string — observações importantes"
-    }
-  ],
-  "hotels": [
-    {
-      "city": "string",
-      "name": "string",
-      "stars": 4,
-      "rating": "8.9",
-      "ratingCount": "string",
-      "address": "string",
-      "neighborhood": "string — bairro e por que é boa localização",
-      "checkIn": "string",
-      "checkOut": "string",
-      "nights": 5,
-      "roomConfig": "string — ex: 1 quarto duplo + berço, ou 2 quartos comunicantes",
-      "childPolicy": "string — política para crianças: grátis até X anos, precisa de quarto extra?",
-      "pricePerNight": 120,
-      "currency": "EUR",
-      "totalPriceBRL": 4200,
-      "priceBreakdown": "string — 5 noites × €120 = €600 = R$3.552",
-      "score": "A|B|C|D",
-      "scoreNote": "string",
-      "amenities": ["array"],
-      "source": "Booking.com",
-      "bookUrl": "https://www.booking.com/search.pt-br.html?ss=...",
-      "bookUrlAirbnb": "https://www.airbnb.com.br/...",
-      "notes": "string"
-    }
-  ],
-  "itinerary": [
-    {
-      "day": 1,
-      "date": "string por extenso",
-      "isoDate": "YYYY-MM-DD",
-      "city": "string",
-      "title": "string",
-      "dayTotalBRL": 800,
-      "dayBreakdown": "string — resumo do que compõe o custo do dia",
-      "items": [
-        {
-          "time": "09:00",
-          "category": "visit|food|flight|hotel|transp|misc|tour",
-          "name": "string",
-          "description": "string — o que é, por que é especial, o que o viajante vai sentir/aprender/viver",
-          "whyThisOne": "string — por que essa experiência e não outra no mesmo destino",
-          "tripAdvisorRating": "4.8 (3.200 avaliações)",
-          "insiderTip": "string — dica que só quem foi sabe, baseada em avaliações reais",
-          "bestTime": "string — melhor horário e por quê (ex: 8h antes das multidões, entardecer para luz)",
-          "touristLevel": "local|misto|turístico|muito turístico",
-          "pricePerPerson": 15,
-          "childPricePerPerson": 8,
-          "childFree": false,
-          "childFreeUpTo": null,
-          "currency": "EUR",
-          "priceBRL": 88,
-          "childPriceBRL": 47,
-          "totalBRL": 223,
-          "priceBreakdown": "string — 2 adultos × €15 + 1 criança(7) × €8 = €38 = R$224",
-          "free": false,
-          "bookUrl": "URL direta para compra em PT-BR se disponível",
-          "bookPlatform": "Civitatis|GetYourGuide|Viator|site oficial",
-          "requiresAdvanceBooking": true,
-          "advanceBookingNote": "string — onde reservar e com quanto de antecedência",
-          "notes": "string — horários de funcionamento, o que levar, como chegar"
-        }
-      ]
-    }
-  ],
-  "budget": {
-    "flights":     {"brl": 12000, "note": "string com breakdown por pessoa"},
-    "hotels":      {"brl": 8500,  "note": "string"},
-    "food":        {"brl": 6000,  "note": "string — média diária × dias"},
-    "attractions": {"brl": 2000,  "note": "string"},
-    "transport":   {"brl": 1500,  "note": "string"},
-    "misc":        {"brl": 1000,  "note": "gorjetas, compras, imprevistos 10%"},
-    "total":       {"brl": 31000},
-    "perPerson":   {"adult": 7750, "child": 5000},
-    "withinLimit": true,
-    "limitBRL": 40000,
-    "overBudgetBRL": 0,
-    "budgetOptimization": [
-      {"action": "string — o que cortar/trocar", "savingBRL": 1500, "tradeoff": "string — o que perde com isso"}
-    ]
-  },
-  "priorities": [
-    {"urgency": "now|soon|later", "item": "string", "reason": "string — por que essa urgência"}
-  ],
-  "altDates": [
-    {
-      "rank": 1,
-      "period": "string",
-      "dateOut": "YYYY-MM-DD",
-      "dateBack": "YYYY-MM-DD",
-      "savingBRL": 3000,
-      "saving": "string",
-      "flightPrice": "string — preço total voos nessa data",
-      "hotelPrice": "string — preço total hospedagem",
-      "season": "baixa|média|alta",
-      "reason": "string — por que é mais barato"
-    }
-  ],
-  "warnings": ["array — alertas importantes"],
-  "tips": ["array — dicas práticas"],
-  "checklist": {
-    "beforeBuying": [
-      {"item": "string — o que fazer/comprar antes", "urgency": "now|soon|later", "url": "link se aplicável", "note": "string"}
-    ],
-    "documents": [
-      {"item": "string — documento necessário", "note": "string — validade, onde tirar, prazo"}
-    ],
-    "beforeTrip": [
-      {"item": "string — preparativo antes de viajar", "urgency": "soon|later", "note": "string"}
-    ],
-    "packing": [
-      {"item": "string — o que levar considerando destino e época", "note": "string"}
-    ],
-    "onArrival": [
-      {"item": "string — o que fazer ao chegar", "note": "string"}
-    ]
-  },
-  "mapPoints": [
-    {"day": 1, "name": "string", "lat": 0.0, "lng": 0.0, "type": "hotel|attraction|restaurant|transport", "city": "string"}
-  ]
-}`;
-}
 
 
 // ── RAW API CALL (via proxy) ──
@@ -3483,8 +2973,8 @@ function buildBookingUrl(hotelName, city, checkIn, checkOut, adults, children) {
   // Booking: 0-17 = child, 18+ = adult
   const kids = ch.filter(a => a < 18);
   const adt = (adults || 2) + ch.filter(a => a >= 18).length;
-  const ci = (checkIn  || '').substring(0, 10);
-  const co = (checkOut || '').substring(0, 10);
+  const ci = (checkIn  || state.dateOut  || '').substring(0, 10);
+  const co = (checkOut || state.dateBack || '').substring(0, 10);
   const searchTerm = (hotelName && city) ? hotelName + ' ' + city : (city || hotelName || '');
   
   let url = 'https://www.booking.com/searchresults.pt-br.html';
@@ -3673,8 +3163,8 @@ function renderHotels(hotels) {
       const inf2 = children.filter(a => a <= 2).length;
       const ch2  = children.filter(a => a > 2 && a < 18).length;
       const ad2  = adults + children.filter(a => a >= 18).length;
-      const ci   = (h.checkIn  || '').substring(0, 10);
-      const co   = (h.checkOut || '').substring(0, 10);
+      const ci   = (h.checkIn  || state.dateOut  || '').substring(0, 10);
+      const co   = (h.checkOut || state.dateBack || '').substring(0, 10);
       const dest = encodeURIComponent(h.city || '');
       return `https://www.airbnb.com.br/s/${dest}/homes?checkin=${ci}&checkout=${co}&adults=${ad2}&children=${ch2}&infants=${inf2}&pets=0&currency=BRL&locale=pt-BR&tab_id=home_tab`;
     })();
