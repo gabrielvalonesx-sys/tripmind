@@ -1161,8 +1161,17 @@ textarea { resize: vertical; min-height: 70px; }
 </div><!-- /app-body -->
 
 <script>
-// ══════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════
 // TRIPMIND — Intelligent Travel Planner
+// ──────────────────────────────────────────────────────────────────
+// REGRA PERMANENTE: toda correção/melhoria deve funcionar em:
+//   ✅ Safari iOS (iPhone/iPad)
+//      - usar xhr.timeout = 0 em chamadas longas
+//      - inputs date: definir value= (não só min=) para posicionar calendário
+//      - evitar features não suportadas pelo WebKit
+//   ✅ Chrome / Firefox / Safari desktop
+//   ✅ PWA instalada (modo standalone no iPhone)
+// ══════════════════════════════════════════════════════════════════
 // Powered by Claude AI + Web Search
 // ══════════════════════════════════════════
 
