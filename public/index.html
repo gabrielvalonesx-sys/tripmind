@@ -2057,10 +2057,31 @@ async function startSearch() {
     const bestFlight = sortedFlights[0]?.f || null;
     const flightTotal = bestFlight ? (bestFlight.totalBRL || bestFlight.totalPriceBRL || 0) : 0;
     // BEST hotel: cheapest available
-    // Reference nightly rates by category (BRL) — used when Claude doesn't return a price
-    const hotelRefRates = { comfort:350, superior:600, luxury:1200, apartment:280 };
-    const hotelCatRate  = hotelRefRates[state.hotelStyle] || 400;
-    const tripNights    = state.totalDays || 7;
+    // Reference nightly rates by category and region (BRL) — fallback when no price returned
+    // Rates reflect typical market prices per region — used ONLY if Claude returns no price
+    const tripNights = state.totalDays || 7;
+    const destLower  = (state.destinations||[]).join(' ').toLowerCase();
+
+    // Classify destination region
+    const destRegion = (() => {
+      if (/maldiv|dubai|emirad|qatar|singapura|tóquio|tokyo|zurique|zurich|genebra|monaco|mykonos|santorini/.test(destLower)) return 'luxury_dest';
+      if (/paris|london|londres|nova york|new york|amsterdam|roma|rome|barcelona|madrid|miami|bali|cancun|cancún/.test(destLower)) return 'premium_dest';
+      if (/lisboa|lisbon|porto|cidade do cabo|cape town|buenos aires|bangkok|istanbul|praga|prague|dubai/.test(destLower)) return 'mid_dest';
+      if (/atacama|patagônia|costa rica|quênia|kenya|safari|peru|machu picchu/.test(destLower)) return 'adventure_dest';
+      if (/nordeste|recife|natal|fortaleza|salvador|florianópolis|rio de janeiro/.test(destLower)) return 'brazil_dest';
+      return 'mid_dest'; // default
+    })();
+
+    // Nightly rates in BRL by region and category
+    const refRateTable = {
+      luxury_dest:    { comfort:1200, superior:2200, luxury:4500, apartment:900  },
+      premium_dest:   { comfort:700,  superior:1300, luxury:2800, apartment:550  },
+      mid_dest:       { comfort:380,  superior:700,  luxury:1500, apartment:300  },
+      adventure_dest: { comfort:450,  superior:850,  luxury:1800, apartment:350  },
+      brazil_dest:    { comfort:280,  superior:500,  luxury:1100, apartment:220  },
+    };
+    const regionRates = refRateTable[destRegion];
+    const hotelCatRate = regionRates[state.hotelStyle] || regionRates.superior;
 
     const allHotels = (result.hotels||[]).filter(h=>h!=null).map(h => {
       // Calculate price from available fields
@@ -2080,7 +2101,7 @@ async function startSearch() {
       if (!p || p < 100) {
         p = Math.round(hotelCatRate * tripNights);
         h._priceEstimated = true;
-        h.notes = (h.notes||'') + ' ⚠️ Preço estimado — confirmar no site.';
+        h.notes = (h.notes||'') + ` ⚠️ Preço estimado (referência regional para ${destRegion.replace('_dest','')}). Confirme no site.`;
       }
       h.totalPriceBRL = p;
       return { h, p };
