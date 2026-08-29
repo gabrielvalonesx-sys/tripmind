@@ -3620,7 +3620,12 @@ function renderItinerary(days) {
         const isFree = item.childFree || false;
 
         priceHtml = `<div class="tl-price">
-          <span>R$ ${totalBRL.toLocaleString('pt-BR')} total</span>
+          <span>R$ ${totalBRL.toLocaleString('pt-BR')} total${(() => {
+            const _lc=cur&&cur!=='BRL'?cur:'';
+            const _lr=_lc==='EUR'?parseFloat(state.fxRates?.EUR||5.9):_lc==='USD'?parseFloat(state.fxRates?.USD||5.4):_lc==='ZAR'?parseFloat(state.fxRates?.ZAR||((state.fxRates?.USD||5.4)*0.055)):_lc==='CLP'?0.0055:_lc==='ARS'?0.006:0;
+            const _la=_lr>0&&totalBRL?Math.round(totalBRL/_lr):0;
+            return _la&&_lc?` <span style="color:var(--muted);font-size:11px">(${_lc} ${_la.toLocaleString('pt-BR')})</span>`:'';
+          })()}</span>
           ${perPax ? `<span class="tl-price-orig"> · ${cur !== 'BRL' ? perPax + ' ' + cur : 'R$ ' + Math.round(perPax).toLocaleString('pt-BR')}/adulto</span>` : ''}
           ${isFree ? '<span class="tl-price-orig" style="color:#065F46"> · 🆓 crianças grátis</span>'
             : childPriceBRL ? `<span class="tl-price-orig" style="color:#065F46"> · R$ ${childPriceBRL.toLocaleString('pt-BR')}/criança</span>`
