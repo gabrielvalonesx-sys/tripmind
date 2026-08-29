@@ -1452,6 +1452,73 @@ const SEASON_DATA = {
   }
 };
 
+// ── Search window generator ──────────────────────────────────────
+function generateSearchWindows(mode, params) {
+  const windows = [];
+  const now = new Date();
+
+  if (mode === 'fixed') {
+    windows.push({ dateOut: params.dateOut, dateBack: params.dateBack });
+
+  } else if (mode === 'flex') {
+    const flexDays = parseInt(params.flexDays) || 3;
+    const base     = new Date(params.dateOut + 'T12:00:00');
+    const duration = parseInt(params.duration) || 7;
+    const step     = flexDays <= 3 ? 1 : flexDays <= 7 ? 2 : flexDays <= 14 ? 3 : 5;
+    for (let offset = -flexDays; offset <= flexDays; offset += step) {
+      const d = new Date(base.getTime() + offset * 86400000);
+      if (d < now) continue;
+      const dateOut  = d.toISOString().split('T')[0];
+      const dateBack = new Date(d.getTime() + duration * 86400000).toISOString().split('T')[0];
+      windows.push({ dateOut, dateBack });
+    }
+
+  } else if (mode === 'season') {
+    const hemisphere = params.hemisphere || 'north';
+    const season     = params.season     || 'spring';
+    const year       = parseInt(params.year) || new Date().getFullYear();
+    const duration   = parseInt(params.duration) || 10;
+    const sd = SEASON_DATA[hemisphere]?.[season];
+    if (!sd) return [{ dateOut: params.dateOut, dateBack: params.dateBack }];
+
+    const [startMM, startDD] = sd.dates[0].split('-');
+    const [endMM,   endDD]   = sd.dates[1].split('-');
+
+    let seasonStart = new Date(`${year}-${startMM}-${startDD}T12:00:00`);
+    let seasonEnd;
+    if (parseInt(endMM) < parseInt(startMM)) {
+      seasonEnd = new Date(`${year + 1}-${endMM}-${endDD}T12:00:00`);
+    } else {
+      seasonEnd = new Date(`${year}-${endMM}-${endDD}T12:00:00`);
+    }
+
+    const lastStart = new Date(seasonEnd.getTime() - duration * 86400000);
+    const totalDays = Math.max(1, Math.round((lastStart - seasonStart) / 86400000));
+    // Max 8 windows to control cost
+    const step = Math.max(1, Math.ceil(totalDays / 7));
+
+    let cur = new Date(seasonStart);
+    while (cur <= lastStart) {
+      if (cur > now) {
+        const dateOut  = cur.toISOString().split('T')[0];
+        const dateBack = new Date(cur.getTime() + duration * 86400000).toISOString().split('T')[0];
+        windows.push({ dateOut, dateBack });
+      }
+      cur = new Date(cur.getTime() + step * 86400000);
+    }
+    // Always include last possible start if not there
+    if (lastStart > now) {
+      const dateOut  = lastStart.toISOString().split('T')[0];
+      const dateBack = new Date(lastStart.getTime() + duration * 86400000).toISOString().split('T')[0];
+      if (!windows.find(w => w.dateOut === dateOut)) windows.push({ dateOut, dateBack });
+    }
+    windows.sort((a, b) => a.dateOut.localeCompare(b.dateOut));
+  }
+
+  return windows;
+}
+
+
 let selectedSeason = 'spring';
 let selectedHemisphere = 'north';
 
@@ -1696,9 +1763,13 @@ async function startSearch() {
   state.travelerType = document.querySelector('.traveler-btn.active')?.dataset.type || 'family';
   state.childrenAges = getChildren();
   state.hotelStyle = state.hotelStyle || document.querySelector('.hotel-opt.active')?.id?.replace('ho-','') || 'superior';
-  state.totalDays = state.dateOut && state.dateBack
-    ? Math.round((new Date(state.dateBack) - new Date(state.dateOut)) / 86400000)
-    : (state.tripDuration || 10);
+  state.totalDays = state.dateMode === 'season'
+    ? (state.seasonDuration || 10)
+    : (state.dateMode === 'best' && !(state.dateOut && state.dateBack))
+      ? (state.tripDuration || 10)
+      : state.dateOut && state.dateBack
+        ? Math.round((new Date(state.dateBack) - new Date(state.dateOut)) / 86400000)
+        : (state.tripDuration || 10);
 
   const loading = document.getElementById('loading-state');
   const btnSearch = document.getElementById('btn-search');
@@ -1733,26 +1804,108 @@ async function startSearch() {
     window._debugSteps = [];
     window._debugRaw = [];
 
-    // ETAPA 1: VOOS REAIS
-    setStep(1, '✈️ Etapa 1/3 — Buscando voos reais...');
+    // ETAPA 1: VOOS — datas fixas, flexíveis ou por estação
     let flightData = { flights: [] };
-    for(let _r1=0;_r1<=2;_r1++){try{
-      const ft = await callAPI_single(buildFlightPrompt(), true, 3000);
-      window._debugRaw.push({ etapa: 1, tipo: 'voos', chars: ft ? ft.length : 0, preview: ft ? ft.substring(0, 200) : 'vazio', full: ft || '' });
-      const fd = parseResponse(ft);
-      if (fd && fd.flights) flightData = fd;
-      if (flightData.fxRates) state.fxRates = { ...state.fxRates, ...flightData.fxRates };
-      window._debugSteps.push({ etapa: 1, status: 'OK', voos: (flightData.flights||[]).length, rawChars: (ft||'').length,
-        parseResult: { fields: flightData.flights?.[0] ? Object.keys(flightData.flights[0]).join(',') : 'empty',
-          total: flightData.flights?.[0]?.totalBRL || flightData.flights?.[0]?.totalPriceBRL || 'MISSING' }
+    let bestWindow = null;
+
+    // Gerar janelas de busca conforme modo selecionado
+    let searchWindows;
+    if (state.dateMode === 'season') {
+      searchWindows = generateSearchWindows('season', {
+        hemisphere: state.seasonHemisphere || 'north',
+        season:     state.seasonSelected   || 'spring',
+        year:       parseInt(state.seasonYear) || new Date().getFullYear(),
+        duration:   parseInt(state.seasonDuration) || 10,
       });
-    } catch(e) {
-      const _n1=e.message.toLowerCase();if((_n1.includes('rede')||_n1.includes('network')||_n1.includes('connect'))&&_r1<2){window._debugSteps.push({etapa:1,status:'RETRY',t:_r1+1});await sleep(2500*(_r1+1));continue;}
-      window._debugSteps.push({ etapa: 1, status: 'ERRO', erro: e.message });
-      console.warn('Flight error:', e.message);
-    }break;}
-    setStep(1, '✈️ Voos encontrados ✓');
-    // Show flights immediately so user sees progress
+    } else if (state.dateMode === 'best' && state.flexDates && state.flexDates !== 'none') {
+      const dur = state.dateOut && state.dateBack
+        ? Math.round((new Date(state.dateBack) - new Date(state.dateOut)) / 86400000)
+        : (state.tripDuration || 10);
+      searchWindows = generateSearchWindows('flex', {
+        dateOut:  state.dateOut,
+        flexDays: parseInt(state.flexDates) || 3,
+        duration: dur,
+      });
+    } else {
+      searchWindows = generateSearchWindows('fixed', {
+        dateOut:  state.dateOut,
+        dateBack: state.dateBack,
+      });
+    }
+
+    const totalWindows = searchWindows.length;
+    let bestFlightPrice = Infinity;
+    let allWindowResults = [];
+
+    for (let wi = 0; wi < searchWindows.length; wi++) {
+      const win = searchWindows[wi];
+      setStep(1, `✈️ Buscando voos${totalWindows > 1 ? ` — janela ${wi+1}/${totalWindows} (${win.dateOut})` : ' reais'}...`);
+
+      // Set dates for this window temporarily
+      const savedOut  = state.dateOut;
+      const savedBack = state.dateBack;
+      state.dateOut  = win.dateOut;
+      state.dateBack = win.dateBack;
+
+      let winData = null;
+      for (let _r1 = 0; _r1 <= 1; _r1++) {
+        try {
+          const ft = await callAPI_single(buildFlightPrompt(), true, 3000);
+          window._debugRaw.push({ etapa: '1w'+wi, tipo: 'voos', win: win.dateOut, chars: ft ? ft.length : 0, preview: ft ? ft.substring(0, 200) : 'vazio', full: ft || '' });
+          const fd = parseResponse(ft);
+          if (fd && Array.isArray(fd.flights) && fd.flights.length > 0) {
+            winData = fd;
+            if (fd.fxRates) state.fxRates = { ...state.fxRates, ...fd.fxRates };
+          }
+          break;
+        } catch(e) {
+          const em = e.message.toLowerCase();
+          if ((em.includes('rede') || em.includes('network') || em.includes('connect')) && _r1 < 1) {
+            await sleep(3000); continue;
+          }
+          console.warn('Flight window error:', win.dateOut, e.message);
+          break;
+        }
+      }
+
+      // Restore original dates
+      state.dateOut  = savedOut;
+      state.dateBack = savedBack;
+
+      if (winData && winData.flights.length > 0) {
+        const cheapest = winData.flights
+          .map(f => parseFloat(f.totalBRL || f.totalPriceBRL || 0))
+          .filter(p => p > 0).sort((a, b) => a - b)[0] || 0;
+
+        allWindowResults.push({ window: win, flightData: winData, cheapestPrice: cheapest, count: winData.flights.length });
+
+        if (cheapest > 0 && cheapest < bestFlightPrice) {
+          bestFlightPrice = cheapest;
+          bestWindow = win;
+          flightData = winData;
+        }
+      }
+    }
+
+    // Lock in the best window as the trip dates
+    if (bestWindow) {
+      state.dateOut   = bestWindow.dateOut;
+      state.dateBack  = bestWindow.dateBack;
+      state.totalDays = Math.round((new Date(bestWindow.dateBack) - new Date(bestWindow.dateOut)) / 86400000);
+    }
+
+    window._debugSteps.push({
+      etapa: 1, status: 'OK',
+      voos: (flightData.flights || []).length,
+      windowsSearched: allWindowResults.length,
+      bestWindow: bestWindow,
+      bestPrice: bestFlightPrice === Infinity ? 0 : bestFlightPrice,
+      allWindows: allWindowResults.map(r => ({
+        dateOut: r.window.dateOut, dateBack: r.window.dateBack,
+        cheapestPrice: r.cheapestPrice, count: r.count
+      }))
+    });
+
     if (flightData.flights && flightData.flights.length > 0) {
       document.getElementById('results-area').classList.add('show');
       renderFlights(flightData.flights);
@@ -3933,10 +4086,33 @@ async function renderWeather(destinations, dateOut) {
 function renderAltDates(altDates) {
   if (!Array.isArray(altDates)) altDates = [];
   const el = document.getElementById('altdates-content');
-  if (!altDates.length) {
-    el.innerHTML = '<div class="card"><div class="card-sub">Nenhuma data alternativa significativamente mais barata encontrada. As datas informadas já estão com bom custo-benefício.</div></div>';
+
+  // Show window comparison if we searched multiple windows
+  const debugStep1 = (window._debugSteps || []).find(s => s.etapa === 1);
+  let windowsHTML = '';
+  if (debugStep1?.allWindows?.length > 1) {
+    const rows = debugStep1.allWindows
+      .sort((a, b) => (a.cheapest || Infinity) - (b.cheapest || Infinity))
+      .map((w, i) => {
+        const isBest = w.dateOut === debugStep1.bestWindow?.dateOut;
+        const priceStr = w.cheapest ? `R$ ${Math.round(w.cheapest).toLocaleString('pt-BR')}` : '—';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;margin-bottom:4px;background:${isBest ? 'var(--accent)' : 'var(--surface-2)'};${isBest ? 'border:1.5px solid var(--primary)' : ''}">
+          <span style="font-size:13px">${isBest ? '✅ ' : ''}${w.dateOut} <span style="color:var(--muted);font-size:11px">(${w.count} voo${w.count!==1?'s':''})</span></span>
+          <span style="font-weight:${isBest?700:400};color:${isBest?'var(--primary)':'var(--ink)'}">${priceStr}</span>
+        </div>`;
+      }).join('');
+    windowsHTML = `<div class="card" style="margin-bottom:12px">
+      <div class="card-title">📅 Comparação de janelas pesquisadas</div>
+      <div class="card-sub" style="margin-bottom:8px">Menor preço de passagem por período — base para hotel e roteiro</div>
+      ${rows}
+    </div>`;
+  }
+
+  if (!altDates.length && !windowsHTML) {
+    el.innerHTML = '<div class="card"><div class="card-sub">Nenhuma data alternativa encontrada. As datas informadas já estão com bom custo-benefício.</div></div>';
     return;
   }
+  if (!altDates.length) { el.innerHTML = windowsHTML; return; }
   const seasonColor = { baixa:'#D1FAE5;color:#065F46', média:'#FEF3C7;color:#92400E', alta:'#FEE2E2;color:#991B1B' };
   const modeNote = state.dateMode === 'best'
     ? '<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#1E40AF"><strong>Modo Melhor Preço:</strong> períodos ordenados do mais barato ao mais caro dentro da janela pesquisada. Clique em qualquer período para usar essas datas.</div>'
