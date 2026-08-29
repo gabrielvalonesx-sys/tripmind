@@ -1923,22 +1923,125 @@ async function startSearch() {
 
     // ETAPA 3: ROTEIRO COMPLETO + ORÇAMENTO
     setStep(3,'📅 Etapa 3/3 — Montando roteiro...');
-    const totalDays=state.totalDays||7,itinTokens=Math.min(10000,Math.max(5000,totalDays*700+1500));
+    const totalDays=state.totalDays||7;
+    const itinTokens=Math.min(10000,Math.max(5000,totalDays*700+1500));
+
+    // Helper: parse itinerary text safely
+    const parseItin = (txt) => {
+      if (!txt) return null;
+      try { return extractBestJSON(txt); } catch { return null; }
+    };
+
+    // Helper: get day numbers present in itinerary array
+    const getDaysPresent = (itin) => new Set((itin||[]).map(d=>parseInt(d.day)).filter(n=>n>0));
+
+    // Helper: get missing day ranges
+    const getMissingRanges = (present, total) => {
+      const missing = [];
+      for (let d=1; d<=total; d++) if (!present.has(d)) missing.push(d);
+      if (!missing.length) return [];
+      // Group consecutive into ranges
+      const ranges = [];
+      let start = missing[0], end = missing[0];
+      for (let i=1; i<missing.length; i++) {
+        if (missing[i] === end+1) { end = missing[i]; }
+        else { ranges.push([start, end]); start = end = missing[i]; }
+      }
+      ranges.push([start, end]);
+      return ranges;
+    };
+
     let itinText;
-    if(totalDays>5){
-      const mid=Math.ceil(totalDays/2);let p1='',p2='';
-      try{setStep(3,`📅 Roteiro dias 1-${mid}...`);p1=await callAPI_single(buildItineraryPrompt(flightData,hotelData,1,mid),false,itinTokens);window._debugRaw.push({etapa:'3a',tipo:'roteiro-p1',chars:p1?p1.length:0,preview:(p1||'').substring(0,200)});}catch(e){console.warn('p1:',e.message);}
-      try{setStep(3,`📅 Roteiro dias ${mid+1}-${totalDays}...`);p2=await callAPI_single(buildItineraryPrompt(flightData,hotelData,mid+1,totalDays),false,itinTokens);window._debugRaw.push({etapa:'3b',tipo:'roteiro-p2',chars:p2?p2.length:0,preview:(p2||'').substring(0,200)});}catch(e){console.warn('p2:',e.message);}
-      const r1=p1?extractBestJSON(p1):null,r2=p2?extractBestJSON(p2):null;
-      const allDays=[...((r1?.itinerary||[])), ...((r2?.itinerary||[]))];
-      if(r1&&allDays.length>0)r1.itinerary=allDays;
-      if(r1&&r2?.budget){const b1=r1.budget||{},b2=r2.budget||{};['food','attractions','transport','misc'].forEach(k=>{r1.budget[k]={brl:(b1[k]?.brl||0)+(b2[k]?.brl||0),note:'calculado'};});}
-      itinText=r1?JSON.stringify(r1):(p1||p2||'{}');
-      window._debugSteps.push({etapa:3,status:'OK',chars:itinText.length,dias:allDays.length});
-    }else{
-      try{itinText=await callAPI_single(buildItineraryPrompt(flightData,hotelData,1,totalDays),false,itinTokens);window._debugRaw.push({etapa:3,tipo:'roteiro',chars:itinText?itinText.length:0,preview:(itinText||'').substring(0,200),full:itinText||''});window._debugSteps.push({etapa:3,status:'OK',chars:itinText?itinText.length:0});}
-      catch(e){window._debugSteps.push({etapa:3,status:'ERRO',erro:e.message});throw e;}
+    let allDays = [];
+
+    if (totalDays > 5) {
+      // Split into 2 calls
+      const mid = Math.ceil(totalDays/2);
+      let p1='', p2='';
+      try {
+        setStep(3,`📅 Roteiro dias 1-${mid}...`);
+        p1 = await callAPI_single(buildItineraryPrompt(flightData,hotelData,1,mid), false, itinTokens);
+        window._debugRaw.push({etapa:'3a',tipo:'roteiro-p1',chars:p1?p1.length:0,preview:(p1||'').substring(0,200)});
+      } catch(e) { console.warn('itin p1:',e.message); }
+      try {
+        setStep(3,`📅 Roteiro dias ${mid+1}-${totalDays}...`);
+        p2 = await callAPI_single(buildItineraryPrompt(flightData,hotelData,mid+1,totalDays), false, itinTokens);
+        window._debugRaw.push({etapa:'3b',tipo:'roteiro-p2',chars:p2?p2.length:0,preview:(p2||'').substring(0,200)});
+      } catch(e) { console.warn('itin p2:',e.message); }
+
+      const r1 = parseItin(p1), r2 = parseItin(p2);
+      allDays = [...(r1?.itinerary||[]), ...(r2?.itinerary||[])];
+
+      // Merge budget from both parts
+      if (r1 && r2?.budget) {
+        const b1=r1.budget||{}, b2=r2.budget||{};
+        ['food','attractions','transport','misc'].forEach(k=>{
+          r1.budget[k]={brl:(b1[k]?.brl||0)+(b2[k]?.brl||0),note:'calculado'};
+        });
+      }
+      itinText = r1 ? JSON.stringify({...r1, itinerary: allDays}) : (p1||p2||'{}');
+
+    } else {
+      // Single call for short trips
+      let p1='';
+      try {
+        p1 = await callAPI_single(buildItineraryPrompt(flightData,hotelData,1,totalDays), false, itinTokens);
+        window._debugRaw.push({etapa:3,tipo:'roteiro',chars:p1?p1.length:0,preview:(p1||'').substring(0,200),full:p1||''});
+      } catch(e) {
+        window._debugSteps.push({etapa:3,status:'ERRO',erro:e.message});
+        throw e;
+      }
+      const r1 = parseItin(p1);
+      allDays = r1?.itinerary || [];
+      itinText = p1 || '{}';
     }
+
+    // ── GAP DETECTION: fill missing days ──────────────────────────
+    const present = getDaysPresent(allDays);
+    const missing = getMissingRanges(present, totalDays);
+
+    if (missing.length > 0) {
+      setStep(3, `📅 Completando dias faltantes (${missing.map(r=>r[0]===r[1]?r[0]:r[0]+'-'+r[1]).join(', ')})...`);
+      window._debugRaw.push({etapa:'3gap',tipo:'gap-fill',missing:missing});
+
+      // Fill gaps in one extra call (all missing ranges together)
+      const gapFrom = missing[0][0];
+      const gapTo   = missing[missing.length-1][1];
+      let gapText = '';
+      try {
+        gapText = await callAPI_single(buildItineraryPrompt(flightData,hotelData,gapFrom,gapTo), false,
+          Math.min(8000, (gapTo-gapFrom+1)*800+1000));
+        window._debugRaw.push({etapa:'3gap-resp',chars:gapText?gapText.length:0,preview:(gapText||'').substring(0,200)});
+      } catch(e) { console.warn('gap fill error:',e.message); }
+
+      if (gapText) {
+        const gapResult = parseItin(gapText);
+        const gapDays   = gapResult?.itinerary || [];
+        // Add gap days, avoiding duplicates
+        gapDays.forEach(day => {
+          if (!present.has(parseInt(day.day))) {
+            allDays.push(day);
+            present.add(parseInt(day.day));
+          }
+        });
+        allDays.sort((a,b)=>(a.day||0)-(b.day||0));
+      }
+    }
+
+    // Update itinText with complete days
+    const baseResult = parseItin(itinText) || {};
+    baseResult.itinerary = allDays;
+    itinText = JSON.stringify(baseResult);
+
+    window._debugSteps.push({
+      etapa:3, status:'OK',
+      chars:itinText.length,
+      diasGerados: allDays.length,
+      diasSolicitados: totalDays,
+      diasFaltantes: missing.length > 0 ? missing : 'nenhum',
+      completo: allDays.length >= totalDays
+    });
+
     let result = parseResponse(itinText);
 
     // Merge
@@ -1954,10 +2057,38 @@ async function startSearch() {
     const bestFlight = sortedFlights[0]?.f || null;
     const flightTotal = bestFlight ? (bestFlight.totalBRL || bestFlight.totalPriceBRL || 0) : 0;
     // BEST hotel: cheapest available
-    const allHotels=(result.hotels||[]).filter(h=>h!=null);
-    const sortedHotels=allHotels.map(h=>({h,p:parseFloat(h.totalPriceBRL||h.totalPrice||(h.pricePerNight&&h.nights?h.pricePerNight*h.nights:0)||0)})).sort((a,b)=>(a.p&&b.p)?a.p-b.p:(a.p?-1:1));
-    const bestHotel=sortedHotels[0]?.h||null,hotelTotal=sortedHotels[0]?.p||0;
-    if(bestHotel&&!bestHotel.totalPriceBRL)bestHotel.totalPriceBRL=hotelTotal;
+    // Reference nightly rates by category (BRL) — used when Claude doesn't return a price
+    const hotelRefRates = { comfort:350, superior:600, luxury:1200, apartment:280 };
+    const hotelCatRate  = hotelRefRates[state.hotelStyle] || 400;
+    const tripNights    = state.totalDays || 7;
+
+    const allHotels = (result.hotels||[]).filter(h=>h!=null).map(h => {
+      // Calculate price from available fields
+      let p = parseFloat(h.totalPriceBRL || h.totalPrice || 0);
+      if (!p && h.pricePerNight && (h.nights||tripNights)) {
+        const rate = parseFloat(h.pricePerNight);
+        const curr = (h.currency||'BRL').toUpperCase();
+        const nights = parseInt(h.nights||tripNights);
+        // Convert to BRL if needed
+        const fx = curr==='EUR' ? parseFloat(state.fxRates?.EUR||5.9) :
+                   curr==='USD' ? parseFloat(state.fxRates?.USD||5.4) :
+                   curr==='ZAR' ? parseFloat(state.fxRates?.ZAR||((state.fxRates?.USD||5.4)*0.055)) :
+                   curr==='CLP' ? 0.0055 : curr==='ARS' ? 0.006 : 1;
+        p = Math.round(rate * fx * nights);
+      }
+      // Last resort: use reference rate with disclaimer
+      if (!p || p < 100) {
+        p = Math.round(hotelCatRate * tripNights);
+        h._priceEstimated = true;
+        h.notes = (h.notes||'') + ' ⚠️ Preço estimado — confirmar no site.';
+      }
+      h.totalPriceBRL = p;
+      return { h, p };
+    }).sort((a,b)=>(a.p&&b.p)?a.p-b.p:(a.p?-1:1));
+
+    const bestHotel = allHotels[0]?.h || null;
+    const hotelTotal = allHotels[0]?.p || 0;
+    result.hotels = allHotels.map(x=>x.h);
     if (!result.budget) result.budget = {};
     result.budget.flights = { brl: flightTotal, note: 'pesquisado em tempo real · confirme no site antes de comprar' };
     result.budget.hotels  = { brl: hotelTotal,  note: 'pesquisado em tempo real' };
