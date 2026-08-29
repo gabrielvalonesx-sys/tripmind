@@ -1771,16 +1771,22 @@ async function startSearch() {
     await sleep(300);
 
     // ETAPA 3: ROTEIRO COMPLETO + ORÇAMENTO
-    setStep(3, '📅 Etapa 3/3 — Montando roteiro completo...');
-    const itinTokens = Math.min(8000, Math.max(4000, (state.totalDays || 7) * 600 + 1000));
+    setStep(3,'📅 Etapa 3/3 — Montando roteiro...');
+    const totalDays=state.totalDays||7,itinTokens=Math.min(10000,Math.max(5000,totalDays*700+1500));
     let itinText;
-    try {
-      itinText = await callAPI_single(buildItineraryPrompt(flightData, hotelData), false, itinTokens);
-      window._debugRaw.push({ etapa: 3, tipo: 'roteiro', chars: itinText ? itinText.length : 0, preview: (itinText || '').substring(0, 200), full: itinText || '' });
-      window._debugSteps.push({ etapa: 3, status: 'OK', chars: itinText ? itinText.length : 0 });
-    } catch(e) {
-      window._debugSteps.push({ etapa: 3, status: 'ERRO', erro: e.message });
-      throw e;
+    if(totalDays>5){
+      const mid=Math.ceil(totalDays/2);let p1='',p2='';
+      try{setStep(3,`📅 Roteiro dias 1-${mid}...`);p1=await callAPI_single(buildItineraryPrompt(flightData,hotelData,1,mid),false,itinTokens);window._debugRaw.push({etapa:'3a',tipo:'roteiro-p1',chars:p1?p1.length:0,preview:(p1||'').substring(0,200)});}catch(e){console.warn('p1:',e.message);}
+      try{setStep(3,`📅 Roteiro dias ${mid+1}-${totalDays}...`);p2=await callAPI_single(buildItineraryPrompt(flightData,hotelData,mid+1,totalDays),false,itinTokens);window._debugRaw.push({etapa:'3b',tipo:'roteiro-p2',chars:p2?p2.length:0,preview:(p2||'').substring(0,200)});}catch(e){console.warn('p2:',e.message);}
+      const r1=p1?extractBestJSON(p1):null,r2=p2?extractBestJSON(p2):null;
+      const allDays=[...((r1?.itinerary||[])), ...((r2?.itinerary||[]))];
+      if(r1&&allDays.length>0)r1.itinerary=allDays;
+      if(r1&&r2?.budget){const b1=r1.budget||{},b2=r2.budget||{};['food','attractions','transport','misc'].forEach(k=>{r1.budget[k]={brl:(b1[k]?.brl||0)+(b2[k]?.brl||0),note:'calculado'};});}
+      itinText=r1?JSON.stringify(r1):(p1||p2||'{}');
+      window._debugSteps.push({etapa:3,status:'OK',chars:itinText.length,dias:allDays.length});
+    }else{
+      try{itinText=await callAPI_single(buildItineraryPrompt(flightData,hotelData,1,totalDays),false,itinTokens);window._debugRaw.push({etapa:3,tipo:'roteiro',chars:itinText?itinText.length:0,preview:(itinText||'').substring(0,200),full:itinText||''});window._debugSteps.push({etapa:3,status:'OK',chars:itinText?itinText.length:0});}
+      catch(e){window._debugSteps.push({etapa:3,status:'ERRO',erro:e.message});throw e;}
     }
     let result = parseResponse(itinText);
 
