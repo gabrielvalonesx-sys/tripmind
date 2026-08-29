@@ -704,6 +704,35 @@ textarea { resize: vertical; min-height: 70px; }
 @media screen and (-webkit-min-device-pixel-ratio: 0) {
   select, textarea, input { font-size: 16px; }
 }
+
+/* Custom date picker */
+#date-picker-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 9999; display: flex; align-items: flex-end; justify-content: center;
+}
+#date-picker-modal {
+  background: var(--surface); border-radius: 20px 20px 0 0;
+  padding: 20px; width: 100%; max-width: 480px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+.dp-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.dp-title { font-size:17px; font-weight:700; color:var(--ink); }
+.dp-nav { display:flex; gap:8px; align-items:center; }
+.dp-nav button { background:none; border:1px solid var(--border); border-radius:8px; padding:6px 12px; cursor:pointer; font-size:15px; color:var(--ink); }
+.dp-month-year { font-size:15px; font-weight:600; color:var(--primary); min-width:140px; text-align:center; }
+.dp-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:4px; }
+.dp-weekday { text-align:center; font-size:11px; color:var(--muted); font-weight:600; padding:4px 0; }
+.dp-days { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.dp-day { text-align:center; padding:10px 4px; border-radius:8px; cursor:pointer; font-size:14px; color:var(--ink); min-height:40px; display:flex; align-items:center; justify-content:center; }
+.dp-day:hover { background:var(--accent); }
+.dp-day.today { font-weight:700; color:var(--primary); }
+.dp-day.selected { background:var(--primary); color:#fff; font-weight:700; }
+.dp-day.past, .dp-day.before-out { color:var(--muted); cursor:not-allowed; opacity:0.4; pointer-events:none; }
+.dp-day.empty { pointer-events:none; }
+.dp-actions { display:flex; gap:8px; margin-top:16px; }
+.dp-btn { flex:1; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; }
+.dp-btn-cancel { background:var(--surface-2); color:var(--ink); }
+.dp-btn-ok { background:var(--primary); color:#fff; }
 </style>
 </head>
 <body>
@@ -789,16 +818,19 @@ textarea { resize: vertical; min-height: 70px; }
       <div class="input-row">
         <div>
           <label>Data de ida</label>
-          <input type="date" id="date-out" min=""
-            onchange="syncDateMin()"
-            onfocus="(function(el){if(!el.value){const t=new Date().toISOString().split('T')[0];el.value=t;setTimeout(()=>{if(el.value===t)el.value='';},100);}})(this)"
-            style="-webkit-appearance: none; appearance: none;">
+          <div id="date-out-picker" onclick="openDatePicker('out')" style="cursor:pointer;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);font-size:15px;color:var(--ink);min-height:44px;display:flex;align-items:center;justify-content:space-between">
+            <span id="date-out-display" style="color:var(--muted)">Selecione a data</span>
+            <span style="color:var(--muted);font-size:12px">📅</span>
+          </div>
+          <input type="hidden" id="date-out">
         </div>
         <div>
           <label>Data de volta</label>
-          <input type="date" id="date-back" min=""
-            onfocus="(function(el){const o=document.getElementById('date-out');if(o&&o.value){if(!el.value||el.value<=o.value)el.value=o.value;}})(this)"
-            style="-webkit-appearance: none; appearance: none;">
+          <div id="date-back-picker" onclick="openDatePicker('back')" style="cursor:pointer;padding:10px 14px;border:1.5px solid var(--border);border-radius:10px;background:var(--surface);font-size:15px;color:var(--ink);min-height:44px;display:flex;align-items:center;justify-content:space-between">
+            <span id="date-back-display" style="color:var(--muted)">Selecione a data</span>
+            <span style="color:var(--muted);font-size:12px">📅</span>
+          </div>
+          <input type="hidden" id="date-back">
         </div>
       </div>
       <div style="margin-top:10px">
@@ -4035,6 +4067,125 @@ function applyManualFlightPrice() {
   switchTab('budget');
 }
 
+// ── Custom Date Picker (works on Safari iOS and all browsers) ────────
+let _dp = { field: null, year: 0, month: 0, selectedDate: null };
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const WEEKDAYS  = ['D','S','T','Q','Q','S','S'];
+
+function openDatePicker(field) {
+  _dp.field = field;
+  const today = new Date();
+  // For date-out: open at today's month
+  // For date-back: open at date-out's month if set, else today
+  let startDate = today;
+  if (field === 'back') {
+    const outVal = document.getElementById('date-out').value;
+    if (outVal) startDate = new Date(outVal + 'T12:00:00');
+  }
+  _dp.year  = startDate.getFullYear();
+  _dp.month = startDate.getMonth();
+  _dp.selectedDate = document.getElementById('date-' + field).value || null;
+  renderDatePicker();
+}
+
+function renderDatePicker() {
+  const existing = document.getElementById('date-picker-overlay');
+  if (existing) existing.remove();
+
+  const today    = new Date(); today.setHours(0,0,0,0);
+  const outVal   = document.getElementById('date-out').value;
+  const outDate  = outVal ? new Date(outVal + 'T12:00:00') : null;
+  const year     = _dp.year, month = _dp.month;
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  // Build days grid
+  let daysHTML = '';
+  for (let i = 0; i < firstDay; i++) daysHTML += '<div class="dp-day empty"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date    = new Date(year, month, d);
+    const dateStr = year + '-' + String(month+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const isToday    = date.getTime() === today.getTime();
+    const isPast     = date < today;
+    const isBeforeOut = _dp.field === 'back' && outDate && date < outDate;
+    const isSelected  = dateStr === _dp.selectedDate;
+    let cls = 'dp-day';
+    if (isToday)     cls += ' today';
+    if (isPast)      cls += ' past';
+    if (isBeforeOut) cls += ' before-out';
+    if (isSelected)  cls += ' selected';
+    daysHTML += `<div class="${cls}" onclick="selectDay('${dateStr}')">${d}</div>`;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.id = 'date-picker-overlay';
+  overlay.innerHTML = `
+    <div id="date-picker-modal">
+      <div class="dp-header">
+        <div class="dp-title">${_dp.field === 'out' ? 'Data de Ida' : 'Data de Volta'}</div>
+        <div class="dp-nav">
+          <button onclick="dpNav(-1)">‹</button>
+          <span class="dp-month-year">${MONTHS_PT[month]} ${year}</span>
+          <button onclick="dpNav(1)">›</button>
+        </div>
+      </div>
+      <div class="dp-weekdays">${WEEKDAYS.map(w=>`<div class="dp-weekday">${w}</div>`).join('')}</div>
+      <div class="dp-days">${daysHTML}</div>
+      <div class="dp-actions">
+        <button class="dp-btn dp-btn-cancel" onclick="closeDatePicker()">Cancelar</button>
+        <button class="dp-btn dp-btn-ok" onclick="confirmDate()" ${!_dp.selectedDate?'disabled style="opacity:0.5"':''}>Confirmar</button>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeDatePicker(); });
+  document.body.appendChild(overlay);
+}
+
+function dpNav(dir) {
+  _dp.month += dir;
+  if (_dp.month > 11) { _dp.month = 0;  _dp.year++; }
+  if (_dp.month < 0)  { _dp.month = 11; _dp.year--; }
+  renderDatePicker();
+}
+
+function selectDay(dateStr) {
+  _dp.selectedDate = dateStr;
+  renderDatePicker();
+}
+
+function confirmDate() {
+  if (!_dp.selectedDate) return;
+  const field   = _dp.field;
+  const dateStr = _dp.selectedDate;
+  // Format for display: DD/MM/YYYY
+  const [y, m, d] = dateStr.split('-');
+  const display = d + '/' + m + '/' + y;
+  document.getElementById('date-' + field).value = dateStr;
+  document.getElementById('date-' + field + '-display').textContent = display;
+  document.getElementById('date-' + field + '-display').style.color = 'var(--ink)';
+  // Highlight picker border
+  document.getElementById('date-' + field + '-picker').style.borderColor = 'var(--primary)';
+  if (field === 'out') syncDateMin();
+  closeDatePicker();
+}
+
+function closeDatePicker() {
+  const el = document.getElementById('date-picker-overlay');
+  if (el) el.remove();
+}
+
+function syncDateMin() {
+  // Update date-back minimum when date-out changes
+  const outVal = document.getElementById('date-out').value;
+  const backVal = document.getElementById('date-back').value;
+  if (outVal && backVal && backVal < outVal) {
+    // Clear date-back if it's before date-out
+    document.getElementById('date-back').value = '';
+    document.getElementById('date-back-display').textContent = 'Selecione a data';
+    document.getElementById('date-back-display').style.color = 'var(--muted)';
+    document.getElementById('date-back-picker').style.borderColor = 'var(--border)';
+  }
+}
+
 function saveToHistory(data, searchParams) {
   const history = getHistory();
   const entry = {
@@ -4112,8 +4263,18 @@ function loadFromHistory(id) {
     renderAgeTags();
     selectTraveler(state.travelerType);
     selectHotel(state.hotelStyle);
-    if (state.dateOut) document.getElementById('date-out').value = state.dateOut;
-    if (state.dateBack) document.getElementById('date-back').value = state.dateBack;
+    if (state.dateOut) {
+      document.getElementById('date-out').value = state.dateOut;
+      const [oy,om,od] = state.dateOut.split('-');
+      const dispEl = document.getElementById('date-out-display');
+      if (dispEl) { dispEl.textContent = od+'/'+om+'/'+oy; dispEl.style.color='var(--ink)'; }
+    }
+    if (state.dateBack) {
+      document.getElementById('date-back').value = state.dateBack;
+      const [by,bm,bd] = state.dateBack.split('-');
+      const dispEl2 = document.getElementById('date-back-display');
+      if (dispEl2) { dispEl2.textContent = bd+'/'+bm+'/'+by; dispEl2.style.color='var(--ink)'; }
+    }
   }
   // Render saved result
   renderResults(entry.data);
