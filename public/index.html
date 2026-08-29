@@ -1176,6 +1176,10 @@ textarea { resize: vertical; min-height: 70px; }
 // ══════════════════════════════════════════
 
 // ── STATE ──
+// Platform detection — used for Safari-specific fixes throughout the code
+const IS_SAFARI_IOS = /iP(hone|od|ad)/.test(navigator.userAgent) && /WebKit/.test(navigator.userAgent);
+const IS_SAFARI     = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
 let state = {
   destinations: [],
   travelerType: 'family',
