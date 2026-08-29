@@ -57,7 +57,7 @@ async function handleAPI(req, res) {
   req.on('data', c => body += c);
   req.on('end', async () => {
     try {
-      const { prompt, useWebSearch = true, maxTokens = 8000 } = JSON.parse(body);
+      const { prompt, useWebSearch = true, maxTokens = 3000 } = JSON.parse(body);
       if (!prompt) return sendJSON(res, 400, { error: 'Prompt ausente' });
 
       const estInputTokens = Math.round(prompt.length / 4);
@@ -70,7 +70,7 @@ async function handleAPI(req, res) {
       };
       const reqBody = {
         model: 'claude-sonnet-4-6',
-        max_tokens: Math.min(maxTokens || 3000, 10000),
+        max_tokens: Math.min(maxTokens || 3000, 12000),
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: prompt }]
       };
