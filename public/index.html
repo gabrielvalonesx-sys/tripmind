@@ -796,6 +796,7 @@ textarea { resize: vertical; min-height: 70px; }
         <div>
           <label>Data de volta</label>
           <input type="date" id="date-back" min=""
+            onfocus="(function(el){const o=document.getElementById('date-out');if(o&&o.value&&!el.value){el.value=o.value;}})(this)"
             style="-webkit-appearance: none; appearance: none;">
         </div>
       </div>
@@ -1233,6 +1234,14 @@ function addAge() {
   if (isNaN(val) || val < 0 || val > 17) return;
   state.childrenAges.push(val);
   renderAgeTags();
+  // Set date-out min to today so calendar opens on current month
+  (function() {
+    const today = new Date().toISOString().split('T')[0];
+    const dOut  = document.getElementById('date-out');
+    const dBack = document.getElementById('date-back');
+    if (dOut)  { dOut.min  = today; }
+    if (dBack) { dBack.min = today; }
+  })();
   inp.value = '';
 }
 
@@ -1301,7 +1310,15 @@ function toggleDay(id) {
 
 function syncDateMin() {
   const v = formatDateISO(document.getElementById('date-out').value);
-  if (v) document.getElementById('date-back').min = v;
+  if (v) {
+    const back = document.getElementById('date-back');
+    back.min = v;
+    // When date-out changes, open date-back at the same month
+    // by setting its value hint if it's empty or before date-out
+    if (!back.value || back.value < v) {
+      back.value = v; // will be cleared if user wants, just sets the starting view
+    }
+  }
 }
 
 // ── FX HELPERS ──
