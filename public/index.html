@@ -3297,7 +3297,15 @@ function renderHotels(hotels) {
       + '<div style="display:flex;flex-direction:column;gap:8px">'
       + '<a href="' + _bkUrl + '" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;text-decoration:none;color:var(--ink)"><span style="font-size:18px">🏨</span><div><div style="font-weight:600;font-size:13px">Booking.com</div><div style="font-size:11px;color:var(--muted)">' + _hCI + ' → ' + _hCO + ' · ' + _hAdt + ' adulto' + (_hAdt>1?'s':'') + (_hKids.length?' + '+_hKids.length+' criança'+(_hKids.length>1?'s':''):'') + '</div></div><span style="margin-left:auto;font-size:12px;color:#6B7280">→</span></a>'
       + '<a href="' + _abUrl + '" target="_blank" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:#fff;border:1px solid #E5E7EB;border-radius:8px;text-decoration:none;color:var(--ink)"><span style="font-size:18px">🏠</span><div><div style="font-weight:600;font-size:13px">Airbnb</div><div style="font-size:11px;color:var(--muted)">Apartamentos e casas</div></div><span style="margin-left:auto;font-size:12px;color:#6B7280">→</span></a>'
-      + '</div></div>';
+      + '<div style="margin-top:12px;padding-top:10px;border-top:1px solid #FDE68A">'
+      + '<div style="font-size:12px;color:#92400E;font-weight:600;margin-bottom:6px">💡 Encontrou hospedagem? Informe o valor total para incluir no orçamento:</div>'
+      + '<div style="display:flex;gap:8px;align-items:center">'
+      + '<input id="manual-hotel-price" type="number" min="0" placeholder="Ex: 4500" style="flex:1;padding:8px 10px;border:1px solid #FDE68A;border-radius:6px;font-size:13px;background:#fff">'
+      + '<span style="font-size:12px;color:#92400E">R$ total</span>'
+      + '<button onclick="applyManualHotelPrice()" style="background:#92400E;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">Usar no orçamento</button>'
+      + '</div>'
+      + '</div>'
+      + '</div>';
     return;
   }
 
@@ -3894,6 +3902,50 @@ function recalcBudgetTotal(result) {
     const pax = getAdults() + getChildren().length;
     b.perPerson = { adult: Math.round(total / Math.max(1, pax)), child: Math.round(total * 0.7 / Math.max(1, pax)) };
   }
+}
+
+function applyManualHotelPrice() {
+  const input = document.getElementById('manual-hotel-price');
+  if (!input) return;
+  const price = parseFloat(input.value);
+  if (!price || price <= 0) {
+    input.style.borderColor = '#EF4444';
+    input.placeholder = 'Digite um valor válido';
+    return;
+  }
+  const result = window._currentResult || {};
+  if (!result.budget) result.budget = {};
+  result.budget.hotels = { brl: price, note: 'informado manualmente pelo usuário' };
+  recalcBudgetTotal(result);
+  renderBudget(result.budget);
+  window._currentResult = result;
+  input.style.borderColor = '#10B981';
+  input.value = '';
+  input.placeholder = '✅ R$ ' + Math.round(price).toLocaleString('pt-BR') + ' incluído no orçamento';
+  switchTab('budget');
+}
+
+function applyManualFlightPrice() {
+  const input = document.getElementById('manual-flight-price');
+  if (!input) return;
+  const price = parseFloat(input.value);
+  if (!price || price <= 0) {
+    input.style.borderColor = '#EF4444';
+    input.placeholder = 'Digite um valor válido';
+    return;
+  }
+  // Create a manual flight entry
+  const result = window._currentResult || {};
+  if (!result.budget) result.budget = {};
+  result.budget.flights = { brl: price, note: 'informado manualmente pelo usuário' };
+  recalcBudgetTotal(result);
+  renderBudget(result.budget);
+  window._currentResult = result;
+  // Show confirmation
+  input.style.borderColor = '#10B981';
+  input.value = '';
+  input.placeholder = '✅ R$ ' + Math.round(price).toLocaleString('pt-BR') + ' incluído no orçamento';
+  switchTab('budget');
 }
 
 function saveToHistory(data, searchParams) {
