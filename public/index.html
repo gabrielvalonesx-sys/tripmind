@@ -3309,12 +3309,20 @@ function buildAirlineUrl(airline, fromCode, toCode, dateOut, adults, children) {
   if (al.includes('qatar')) {
     return `https://www.qatarairways.com/pt-br/flights.html?from=${from}&to=${to}&date=${d1h}&adults=${adt}&children=${chd}&infants=${inf}`;
   }
-  // Google Flights fallback - with all params
+  // Google Flights fallback - dynamic URL with all params
   const paxParts = [`${adt}adults`];
   if (chd > 0) paxParts.push(`${chd}children`);
   if (inf > 0) paxParts.push(`${inf}infants`);
   const paxStr = paxParts.join(',');
-  return `https://www.google.com/travel/flights/search?tfs=CBwQARoqEgoyMDI2LTA5LTEyagcIARIDJHtmcm9tfXIHCAESAyR7dG99QgJCUhoCUFQ&pax=${paxStr}&curr=BRL&hl=pt-BR`;
+  // Build Google Flights deep link with actual dates and airports
+  const d1fmt = (d1 || '').replace(/-/g,'');
+  const d2fmt = (state.dateBack || '').replace(/-/g,'');
+  const gfBase = `https://www.google.com/travel/flights/search?hl=pt-BR&curr=BRL`;
+  const gfOrigin = from || state.destinations?.[0] || '';
+  const gfDest   = to   || '';
+  // Use simple search URL that Google Flights will parse
+  const gfQuery = `${gfOrigin} para ${gfDest} ${d1 || ''} volta ${state.dateBack || ''} ${adt} adultos ${chd > 0 ? chd + ' criancas' : ''}`.trim();
+  return `${gfBase}&q=${encodeURIComponent(gfQuery)}&tfs=&pax=${paxStr}`;
 }
 
 function buildBookingUrl(hotelName, city, checkIn, checkOut, adults, children) {
