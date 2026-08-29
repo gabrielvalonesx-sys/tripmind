@@ -705,34 +705,53 @@ textarea { resize: vertical; min-height: 70px; }
   select, textarea, input { font-size: 16px; }
 }
 
-/* Custom date picker */
+/* Custom date picker — cross-platform (Safari iOS + desktop) */
 #date-picker-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
   z-index: 9999; display: flex; align-items: flex-end; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
 }
 #date-picker-modal {
   background: var(--surface); border-radius: 20px 20px 0 0;
-  padding: 20px; width: 100%; max-width: 480px;
-  padding-bottom: max(20px, env(safe-area-inset-bottom));
+  width: 100%; max-width: 400px; padding: 16px 16px 0 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
 }
-.dp-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
-.dp-title { font-size:17px; font-weight:700; color:var(--ink); }
-.dp-nav { display:flex; gap:8px; align-items:center; }
-.dp-nav button { background:none; border:1px solid var(--border); border-radius:8px; padding:6px 12px; cursor:pointer; font-size:15px; color:var(--ink); }
-.dp-month-year { font-size:15px; font-weight:600; color:var(--primary); min-width:140px; text-align:center; }
-.dp-weekdays { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:4px; }
-.dp-weekday { text-align:center; font-size:11px; color:var(--muted); font-weight:600; padding:4px 0; }
-.dp-days { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-.dp-day { text-align:center; padding:10px 4px; border-radius:8px; cursor:pointer; font-size:14px; color:var(--ink); min-height:40px; display:flex; align-items:center; justify-content:center; }
-.dp-day:hover { background:var(--accent); }
-.dp-day.today { font-weight:700; color:var(--primary); }
-.dp-day.selected { background:var(--primary); color:#fff; font-weight:700; }
-.dp-day.past, .dp-day.before-out { color:var(--muted); cursor:not-allowed; opacity:0.4; pointer-events:none; }
-.dp-day.empty { pointer-events:none; }
-.dp-actions { display:flex; gap:8px; margin-top:16px; }
-.dp-btn { flex:1; padding:12px; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; }
-.dp-btn-cancel { background:var(--surface-2); color:var(--ink); }
-.dp-btn-ok { background:var(--primary); color:#fff; }
+.dp-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px;
+}
+.dp-title { font-size: 16px; font-weight: 700; color: var(--ink); }
+.dp-nav-row { display: flex; align-items: center; gap: 6px; }
+.dp-nav-btn {
+  background: var(--surface-2); border: none; border-radius: 8px;
+  width: 36px; height: 36px; font-size: 18px; cursor: pointer;
+  color: var(--ink); display: flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.dp-month-label { font-size: 14px; font-weight: 600; color: var(--primary); min-width: 130px; text-align: center; }
+.dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 8px; }
+.dp-wday { text-align: center; font-size: 11px; color: var(--muted); font-weight: 600; padding: 6px 0; }
+.dp-cell {
+  text-align: center; border-radius: 8px; cursor: pointer; font-size: 14px;
+  color: var(--ink); height: 40px; display: flex; align-items: center;
+  justify-content: center; -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none;
+}
+.dp-cell:active { background: var(--accent); }
+.dp-cell.dp-today { font-weight: 700; color: var(--primary); }
+.dp-cell.dp-sel { background: var(--primary); color: #fff; font-weight: 700; border-radius: 8px; }
+.dp-cell.dp-dis { color: var(--muted); cursor: default; opacity: 0.35; pointer-events: none; }
+.dp-cell.dp-empty { pointer-events: none; }
+.dp-footer { display: flex; gap: 8px; padding: 12px 0; }
+.dp-footer button {
+  flex: 1; padding: 13px; border: none; border-radius: 12px;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.dp-cancel { background: var(--surface-2); color: var(--ink); }
+.dp-confirm { background: var(--primary); color: #fff; }
+.dp-confirm:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -3319,6 +3338,12 @@ function renderFlights(flights) {
       ? `<span style="background:${scoreColor.split(';')[0].replace('background:','')};${scoreColor.split(';')[1]};font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px" title="${f.scoreNote || ''}">Score ${f.score}</span>`
       : '';
 
+    // searchedAt and price warning — declared here so template can use them
+    const searchedAt = f.searchedAt
+      ? `<div style="font-size:10px;color:var(--muted);margin-top:4px">🕐 Consultado: ${f.searchedAt}</div>`
+      : '';
+    const priceWarn = `<div style="font-size:10px;color:#92400E;background:#FFFBEB;border-radius:4px;padding:3px 6px;margin-top:4px">⚠️ Preço pode variar — confirme no site antes de comprar</div>`;
+
     // Origin highlight
     const originBadge = f.origin
       ? `<span style="background:#EDE9FE;color:#5B21B6;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px">${f.origin} ← saída recomendada</span>`
@@ -4067,122 +4092,128 @@ function applyManualFlightPrice() {
   switchTab('budget');
 }
 
-// ── Custom Date Picker (works on Safari iOS and all browsers) ────────
-let _dp = { field: null, year: 0, month: 0, selectedDate: null };
-const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const WEEKDAYS  = ['D','S','T','Q','Q','S','S'];
+// ── Custom Date Picker — Safari iOS & desktop compatible ─────────────
+const MONTHS_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                   'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+let _dp = { field: null, year: 0, month: 0, sel: null };
 
 function openDatePicker(field) {
   _dp.field = field;
   const today = new Date();
-  // For date-out: open at today's month
-  // For date-back: open at date-out's month if set, else today
-  let startDate = today;
+  today.setHours(0,0,0,0);
+  let base = today;
   if (field === 'back') {
-    const outVal = document.getElementById('date-out').value;
-    if (outVal) startDate = new Date(outVal + 'T12:00:00');
+    const ov = document.getElementById('date-out').value;
+    if (ov) { base = new Date(ov + 'T12:00:00'); }
   }
-  _dp.year  = startDate.getFullYear();
-  _dp.month = startDate.getMonth();
-  _dp.selectedDate = document.getElementById('date-' + field).value || null;
-  renderDatePicker();
+  _dp.year  = base.getFullYear();
+  _dp.month = base.getMonth();
+  _dp.sel   = document.getElementById('date-' + field).value || null;
+  _renderDP();
 }
 
-function renderDatePicker() {
+function _renderDP() {
   const existing = document.getElementById('date-picker-overlay');
   if (existing) existing.remove();
 
-  const today    = new Date(); today.setHours(0,0,0,0);
-  const outVal   = document.getElementById('date-out').value;
-  const outDate  = outVal ? new Date(outVal + 'T12:00:00') : null;
-  const year     = _dp.year, month = _dp.month;
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today   = new Date(); today.setHours(0,0,0,0);
+  const outVal  = document.getElementById('date-out').value;
+  const outDate = outVal ? new Date(outVal + 'T12:00:00') : null;
+  const { year, month, sel, field } = _dp;
 
-  // Build days grid
-  let daysHTML = '';
-  for (let i = 0; i < firstDay; i++) daysHTML += '<div class="dp-day empty"></div>';
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date    = new Date(year, month, d);
-    const dateStr = year + '-' + String(month+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
-    const isToday    = date.getTime() === today.getTime();
-    const isPast     = date < today;
-    const isBeforeOut = _dp.field === 'back' && outDate && date < outDate;
-    const isSelected  = dateStr === _dp.selectedDate;
-    let cls = 'dp-day';
-    if (isToday)     cls += ' today';
-    if (isPast)      cls += ' past';
-    if (isBeforeOut) cls += ' before-out';
-    if (isSelected)  cls += ' selected';
-    daysHTML += `<div class="${cls}" onclick="selectDay('${dateStr}')">${d}</div>`;
+  const first    = new Date(year, month, 1).getDay();
+  const lastDay  = new Date(year, month + 1, 0).getDate();
+
+  let cells = '';
+  // Empty cells before first day
+  for (let i = 0; i < first; i++) cells += '<div class="dp-cell dp-empty"></div>';
+  for (let d = 1; d <= lastDay; d++) {
+    const dt  = new Date(year, month, d);
+    const iso = year + '-' + String(month+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const isPast  = dt < today;
+    const isBefore = field === 'back' && outDate && dt < outDate;
+    const isToday  = dt.getTime() === today.getTime();
+    const isSel    = iso === sel;
+    let cls = 'dp-cell';
+    if (isPast || isBefore) cls += ' dp-dis';
+    else if (isSel) cls += ' dp-sel';
+    else if (isToday) cls += ' dp-today';
+    cells += `<div class="${cls}" onclick="_dpSel('${iso}')">${d}</div>`;
   }
 
-  const overlay = document.createElement('div');
-  overlay.id = 'date-picker-overlay';
-  overlay.innerHTML = `
-    <div id="date-picker-modal">
-      <div class="dp-header">
-        <div class="dp-title">${_dp.field === 'out' ? 'Data de Ida' : 'Data de Volta'}</div>
-        <div class="dp-nav">
-          <button onclick="dpNav(-1)">‹</button>
-          <span class="dp-month-year">${MONTHS_PT[month]} ${year}</span>
-          <button onclick="dpNav(1)">›</button>
+  const wdays = ['D','S','T','Q','Q','S','S'].map(w=>`<div class="dp-wday">${w}</div>`).join('');
+  const modal = `
+    <div id="date-picker-overlay" onclick="if(event.target===this)_dpClose()">
+      <div id="date-picker-modal">
+        <div class="dp-header">
+          <div class="dp-title">${field === 'out' ? '📅 Data de Ida' : '📅 Data de Volta'}</div>
+        </div>
+        <div class="dp-nav-row" style="justify-content:center;margin-bottom:10px">
+          <button class="dp-nav-btn" onclick="_dpNav(-1)">‹</button>
+          <span class="dp-month-label">${MONTHS_PT[month]} ${year}</span>
+          <button class="dp-nav-btn" onclick="_dpNav(1)">›</button>
+        </div>
+        <div class="dp-grid">${wdays}${cells}</div>
+        <div class="dp-footer">
+          <button class="dp-cancel" onclick="_dpClose()">Cancelar</button>
+          <button class="dp-confirm" onclick="_dpConfirm()" ${!sel?'disabled':''}>Confirmar</button>
         </div>
       </div>
-      <div class="dp-weekdays">${WEEKDAYS.map(w=>`<div class="dp-weekday">${w}</div>`).join('')}</div>
-      <div class="dp-days">${daysHTML}</div>
-      <div class="dp-actions">
-        <button class="dp-btn dp-btn-cancel" onclick="closeDatePicker()">Cancelar</button>
-        <button class="dp-btn dp-btn-ok" onclick="confirmDate()" ${!_dp.selectedDate?'disabled style="opacity:0.5"':''}>Confirmar</button>
-      </div>
     </div>`;
-  overlay.addEventListener('click', e => { if (e.target === overlay) closeDatePicker(); });
-  document.body.appendChild(overlay);
+
+  document.body.insertAdjacentHTML('beforeend', modal);
 }
 
-function dpNav(dir) {
+function _dpNav(dir) {
   _dp.month += dir;
   if (_dp.month > 11) { _dp.month = 0;  _dp.year++; }
   if (_dp.month < 0)  { _dp.month = 11; _dp.year--; }
-  renderDatePicker();
+  _renderDP();
 }
 
-function selectDay(dateStr) {
-  _dp.selectedDate = dateStr;
-  renderDatePicker();
+function _dpSel(iso) {
+  _dp.sel = iso;
+  _renderDP();
 }
 
-function confirmDate() {
-  if (!_dp.selectedDate) return;
-  const field   = _dp.field;
-  const dateStr = _dp.selectedDate;
-  // Format for display: DD/MM/YYYY
-  const [y, m, d] = dateStr.split('-');
+function _dpConfirm() {
+  if (!_dp.sel) return;
+  const [y, m, d] = _dp.sel.split('-');
   const display = d + '/' + m + '/' + y;
-  document.getElementById('date-' + field).value = dateStr;
-  document.getElementById('date-' + field + '-display').textContent = display;
-  document.getElementById('date-' + field + '-display').style.color = 'var(--ink)';
-  // Highlight picker border
-  document.getElementById('date-' + field + '-picker').style.borderColor = 'var(--primary)';
-  if (field === 'out') syncDateMin();
-  closeDatePicker();
+  const field = _dp.field;
+  document.getElementById('date-' + field).value = _dp.sel;
+  const dispEl = document.getElementById('date-' + field + '-display');
+  if (dispEl) { dispEl.textContent = display; dispEl.style.color = 'var(--ink)'; }
+  const pickerEl = document.getElementById('date-' + field + '-picker');
+  if (pickerEl) pickerEl.style.borderColor = 'var(--primary)';
+  if (field === 'out') {
+    // Clear date-back if it's before new date-out
+    const backVal = document.getElementById('date-back').value;
+    if (backVal && backVal < _dp.sel) {
+      document.getElementById('date-back').value = '';
+      const bDisp = document.getElementById('date-back-display');
+      if (bDisp) { bDisp.textContent = 'Selecione a data'; bDisp.style.color = 'var(--muted)'; }
+      const bPick = document.getElementById('date-back-picker');
+      if (bPick) bPick.style.borderColor = 'var(--border)';
+    }
+  }
+  _dpClose();
 }
 
-function closeDatePicker() {
+function _dpClose() {
   const el = document.getElementById('date-picker-overlay');
   if (el) el.remove();
 }
 
+// Keep syncDateMin for compatibility
 function syncDateMin() {
-  // Update date-back minimum when date-out changes
-  const outVal = document.getElementById('date-out').value;
+  const outVal  = document.getElementById('date-out').value;
   const backVal = document.getElementById('date-back').value;
   if (outVal && backVal && backVal < outVal) {
-    // Clear date-back if it's before date-out
     document.getElementById('date-back').value = '';
-    document.getElementById('date-back-display').textContent = 'Selecione a data';
-    document.getElementById('date-back-display').style.color = 'var(--muted)';
-    document.getElementById('date-back-picker').style.borderColor = 'var(--border)';
+    const bDisp = document.getElementById('date-back-display');
+    if (bDisp) { bDisp.textContent = 'Selecione a data'; bDisp.style.color = 'var(--muted)'; }
   }
 }
 
