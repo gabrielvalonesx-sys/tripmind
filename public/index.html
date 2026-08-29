@@ -1556,27 +1556,41 @@ function buildFlightPrompt() {
   const fxEur = parseFloat(state.fxRates?.EUR) || 5.90;
   const fxUsd = parseFloat(state.fxRates?.USD) || 5.45;
 
-  return `Pesquise voos REAIS. Use web_search para buscar precos atuais.
+  return `Pesquise passagens aereas REAIS com precos ATUAIS verificados agora.
 
 ROTA: JPA (Joao Pessoa) ou REC (Recife) para ${dest}
 DATA IDA: ${dateOut} | VOLTA: ${dateBack}
 VIAJANTES: ${adults} adulto(s), criancas: [${childInfo}]
 CAMBIO: EUR=R$${fxEur.toFixed(2)} USD=R$${fxUsd.toFixed(2)}
 
-FAÇA NO MÁXIMO 2 buscas web (custo por busca é alto):
-1. "voos ${dest} ${dateOut} precos" — uma busca apenas, abrangente
-2. Se necessário: "LATAM GOL TAP ${dest} setembro 2026" — segunda busca
+INSTRUCOES DE BUSCA (siga esta ordem exata):
+1. Busque no Google Flights: acesse https://www.google.com/travel/flights e pesquise a rota ${dest} saindo de REC e JPA em ${dateOut}
+2. Anote os precos EXATOS exibidos no Google Flights para cada opcao (preco por adulto)
+3. Verifique tambem no site da LATAM (latamairlines.com) o preco para a mesma rota e data
+4. Use web_search com: "Google Flights REC ${dest} ${dateOut} preco"
+5. MAXIMO 2 buscas web no total
 
-TARIFAS POR IDADE (politica real de cada cia):
-- 0-1 ano: bebe, taxa minima
-- 2-11 anos: crianca, reducao aprox 75%
-- 12+ anos: adulto na maioria das cias (verificar politica real)
-- Calcule totalPriceBRL REAL do grupo
+CALCULO DE PRECO TOTAL DO GRUPO (OBRIGATORIO):
+- Adultos (${adults}): cada um paga tarifa adulto completa
+- Criancas por faixa etaria conforme politica da cia aerea:
+  ${childInfo.split(', ').map((c,i) => {
+    const age = parseInt(c);
+    if (age <= 1) return `  Crianca ${i+1} (${c}): BEBE — taxa ~10% do adulto (colo, sem assento)`;
+    if (age <= 11) return `  Crianca ${i+1} (${c}): CRIANCA — tarifa ~75% do adulto (assento proprio)`;
+    return `  Crianca ${i+1} (${c}): LATAM e maioria das cias = ADULTO (tarifa integral)`;
+  }).join('\n  ')}
+- Calcule e informe o totalPriceBRL = soma de TODOS os passageiros
+- Informe o priceBreakdown detalhado (ex: "2 adultos x R$4.500 + 1 crianca x R$3.375 + 1 adulto x R$4.500 = R$16.375")
 
-RETORNE APENAS JSON valido. Sem texto antes ou depois.
-O JSON DEVE conter o array "flights" com os voos encontrados.
-Campos em cada voo: type, origin, airline, departDate, arriveDate, duration, stops, stopCities, priceAdult, priceChild_2_11, totalPriceBRL, totalBRL, currency, totalPriceBreakdown, fromCode, toCode, score, bookUrl, source, notes.
-Se nao encontrar voos reais, retorne apenas isso: {"flights":[],"fxRates":{"EUR":5.90,"USD":5.45}}.`;
+AVISOS IMPORTANTES:
+- Informe a DATA E HORA da consulta no campo "searchedAt"
+- Precos de passagem variam constantemente — o valor e uma referencia do momento da busca
+- O usuario devera confirmar o preco final no site da companhia antes de comprar
+
+RETORNE APENAS JSON valido. O JSON DEVE ter o array "flights".
+Campos obrigatorios em cada voo: type, origin, airline, departDate, arriveDate, duration, stops, stopCities, priceAdult, priceChild_2_11, priceChild_0_1, totalPriceBRL, totalBRL, currency, totalPriceBreakdown, fromCode, toCode, score, bookUrl, source, searchedAt, priceWarning, notes.
+priceWarning deve ser: "Preco consultado em ${new Date().toLocaleString('pt-BR')} via Google Flights. Confirme o valor final no site da companhia antes de comprar."
+Se nao encontrar precos reais, retorne: {"flights":[],"fxRates":{"EUR":${fxEur},"USD":${fxUsd}}}.`;
 }
 function buildHotelPrompt(flightData) {
   const adults = getAdults();
@@ -1808,7 +1822,7 @@ async function startSearch() {
     const bestHotel=sortedHotels[0]?.h||null,hotelTotal=sortedHotels[0]?.p||0;
     if(bestHotel&&!bestHotel.totalPriceBRL)bestHotel.totalPriceBRL=hotelTotal;
     if (!result.budget) result.budget = {};
-    result.budget.flights = { brl: flightTotal, note: 'pesquisado em tempo real' };
+    result.budget.flights = { brl: flightTotal, note: `pesquisado em tempo real · confirme no site antes de comprar` };
     result.budget.hotels = { brl: hotelTotal, note: 'pesquisado em tempo real' };
     // Recalculate total from all components
     const foodBrl = (result.budget.food?.brl || 0);
@@ -3445,6 +3459,8 @@ function renderFlights(flights) {
       </div>
       ${f.scoreNote ? `<div style="font-size:11px;color:var(--muted);margin-top:5px">💡 ${f.scoreNote}</div>` : ''}
       ${f.notes ? `<div style="font-size:11px;color:#92400E;margin-top:4px;background:#FFFBEB;padding:5px 8px;border-radius:6px">ℹ️ ${f.notes}</div>` : ''}
+      ${searchedAt}
+      ${priceWarn}
       ${bookLinks}
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
         <button class="select-flight-btn" onclick="selectFlight(${flightIdx})" style="background:var(--primary);color:#fff;border:none;border-radius:6px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;width:100%">Usar este voo no orçamento →</button>
