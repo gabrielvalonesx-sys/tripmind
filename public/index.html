@@ -1816,13 +1816,21 @@ VIAGEM:
 - Voos: R$${flightTotal.toLocaleString('pt-BR')} | Hotel: R$${hotelTotal.toLocaleString('pt-BR')}
 ${budgetLimit > 0 ? '- Disponivel atracoes+alimentacao: R$' + remaining.toLocaleString('pt-BR') : ''}
 
-INSTRUCOES:
+INSTRUCOES CRITICAS:
 - Crie TODOS os ${nights} dias (dia 1 ao dia ${nights})
-- Cada dia: 3-5 atividades (manha, almoco, tarde, jantar)
-- Atracoes pagas: preco real por adulto e crianca separados
-- Use links Civitatis (https://www.civitatis.com/pt/) ou GetYourGuide
-- Inclua refeicoes com precos locais reais estimados
-- Calcule custo total realista de cada dia
+- Cada dia: cafe da manha, almoco, 1-2 atracoes, jantar, transporte local
+- totalBRL de cada item = custo TOTAL DO GRUPO (${adults} adultos + ${childInfo})
+  Exemplo: almoco R$80/adulto + R$50/crianca = ${adults}x80 + criancas = total em BRL
+- pricePerPerson = preco individual por adulto na moeda local
+- childPricePerPerson = preco individual por crianca na moeda local
+- currency = moeda local do destino (CLP para Chile, USD, EUR etc)
+- totalBRL = valor ja convertido para BRL para o GRUPO COMPLETO
+- dayTotalBRL = soma de todos os totalBRL dos itens do dia
+- Precos REALISTAS para ${dest} — nao subestime:
+  Ex Santiago: almoco R$120-200/pessoa, jantar R$150-250/pessoa, uber R$30-60/corrida
+- Atracoes pagas: use link real Civitatis ou GetYourGuide
+- Gorjetas: incluir ~10% do jantar como item "misc"
+- Bebidas: incluir em cada refeicao
 
 RETORNE APENAS JSON valido. Sem texto antes ou depois.
 Campos obrigatorios no JSON: tripTitle, period, totalDays, travelers, fxRates, seasonInfo, itinerary (array com TODOS os ${nights} dias), budget, priorities, warnings, tips, altDates.
@@ -2211,7 +2219,8 @@ async function startSearch() {
         p = Math.round(rate * fx * nights);
       }
       // Last resort: use reference rate with disclaimer
-      if (!p || p < 100) {
+      // Also reject clearly wrong prices (< R$150/night total)
+      if (!p || p < (150 * tripNights)) {
         p = Math.round(hotelCatRate * tripNights);
         h._priceEstimated = true;
         h.notes = (h.notes||'') + ` ⚠️ Preço estimado (referência regional para ${destRegion.replace('_dest','')}). Confirme no site.`;
@@ -2241,16 +2250,42 @@ async function startSearch() {
       });
     });
 
-    // Use larger of: itinerary sum vs Claude's budget estimate
-    const foodBrl  = Math.max(_sumFood,  parseFloat(result.budget.food?.brl||0));
-    const attrBrl  = Math.max(_sumAttr,  parseFloat(result.budget.attractions?.brl||0));
-    const transBrl = Math.max(_sumTrans, parseFloat(result.budget.transport?.brl||0));
-    // Misc: use Claude's value or estimate 10% of food as tips
-    const miscBrl  = parseFloat(result.budget.misc?.brl||0) || _sumMisc || Math.round(foodBrl*0.10);
+    // Reference daily costs per person by region (BRL) — used when items return 0
+    const _destLower = (state.destinations||[]).join(' ').toLowerCase();
+    const _region = (() => {
+      if (/maldiv|dubai|tokyo|tóquio|zurich|monaco|mykonos/.test(_destLower)) return 'luxury_dest';
+      if (/paris|london|nova york|new york|amsterdam|bali|cancun|miami/.test(_destLower)) return 'premium_dest';
+      if (/atacama|patagônia|costa rica|safari|quênia|peru|machu/.test(_destLower)) return 'adventure_dest';
+      if (/nordeste|recife|natal|fortaleza|salvador|florianópolis/.test(_destLower)) return 'brazil_dest';
+      return 'mid_dest';
+    })();
+    const _dailyRef = {
+      luxury_dest:    {food:350, attr:200, trans:80,  misc:50},
+      premium_dest:   {food:220, attr:120, trans:50,  misc:30},
+      mid_dest:       {food:150, attr:80,  trans:35,  misc:20},
+      adventure_dest: {food:180, attr:150, trans:50,  misc:25},
+      brazil_dest:    {food:100, attr:60,  trans:30,  misc:15},
+    }[_region];
+    const _paxCount  = getAdults() + getChildren().length;
+    const _nights    = state.totalDays || 7;
 
-    result.budget.food        = { brl: foodBrl,  note: foodBrl  ? 'calculado do roteiro' : 'a calcular' };
-    result.budget.attractions = { brl: attrBrl,  note: attrBrl  ? 'calculado do roteiro' : 'a calcular' };
-    result.budget.transport   = { brl: transBrl, note: transBrl ? 'calculado do roteiro' : 'a calcular' };
+    // Use itinerary sum if meaningful (>50/day avg), otherwise use reference
+    const _minFood  = _dailyRef.food  * _paxCount * _nights;
+    const _minAttr  = _dailyRef.attr  * _paxCount * _nights;
+    const _minTrans = _dailyRef.trans * _nights;  // transport per trip, not per person
+    const _minMisc  = _dailyRef.misc  * _paxCount * _nights;
+
+    const foodBrl  = Math.max(_sumFood,  parseFloat(result.budget.food?.brl||0),  _minFood  * 0.5);
+    const attrBrl  = Math.max(_sumAttr,  parseFloat(result.budget.attractions?.brl||0), _minAttr * 0.5);
+    const transBrl = Math.max(_sumTrans, parseFloat(result.budget.transport?.brl||0), _minTrans * 0.5);
+    const miscBrl  = Math.max(_sumMisc,  parseFloat(result.budget.misc?.brl||0),  _minMisc  * 0.5);
+
+    // Flag if using reference values
+    const _usingRef = _sumFood < _minFood * 0.3;
+
+    result.budget.food        = { brl: foodBrl,  note: _usingRef ? `estimado (ref. ${_region.replace('_dest','')})` : 'calculado do roteiro' };
+    result.budget.attractions = { brl: attrBrl,  note: _usingRef ? `estimado (ref. ${_region.replace('_dest','')})` : 'calculado do roteiro' };
+    result.budget.transport   = { brl: transBrl, note: _usingRef ? 'estimado' : 'calculado do roteiro' };
     result.budget.misc        = { brl: miscBrl,  note: 'gorjetas e imprevistos' };
 
     const calcTotal = flightTotal + hotelTotal + foodBrl + attrBrl + transBrl + miscBrl;
