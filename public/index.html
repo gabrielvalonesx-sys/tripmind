@@ -791,12 +791,13 @@ textarea { resize: vertical; min-height: 70px; }
           <label>Data de ida</label>
           <input type="date" id="date-out" min=""
             onchange="syncDateMin()"
+            onfocus="(function(el){if(!el.value){const t=new Date().toISOString().split('T')[0];el.value=t;setTimeout(()=>{if(el.value===t)el.value='';},100);}})(this)"
             style="-webkit-appearance: none; appearance: none;">
         </div>
         <div>
           <label>Data de volta</label>
           <input type="date" id="date-back" min=""
-            onfocus="(function(el){const o=document.getElementById('date-out');if(o&&o.value&&!el.value){el.value=o.value;}})(this)"
+            onfocus="(function(el){const o=document.getElementById('date-out');if(o&&o.value){if(!el.value||el.value<=o.value)el.value=o.value;}})(this)"
             style="-webkit-appearance: none; appearance: none;">
         </div>
       </div>
@@ -1234,13 +1235,23 @@ function addAge() {
   if (isNaN(val) || val < 0 || val > 17) return;
   state.childrenAges.push(val);
   renderAgeTags();
-  // Set date-out min to today so calendar opens on current month
+  // Fix: Safari iOS uses value (not min) to determine which month to show
+  // Set value = today so calendar always opens on current month
   (function() {
     const today = new Date().toISOString().split('T')[0];
     const dOut  = document.getElementById('date-out');
     const dBack = document.getElementById('date-back');
-    if (dOut)  { dOut.min  = today; }
-    if (dBack) { dBack.min = today; }
+    if (dOut) {
+      dOut.min = today;
+      // Only set value if field is empty or has a past/wrong date
+      if (!dOut.value || dOut.value < today) {
+        dOut.value = today; // positions Safari calendar on current month
+      }
+    }
+    if (dBack) {
+      dBack.min = today;
+      // date-back stays empty until user picks date-out
+    }
   })();
   inp.value = '';
 }
